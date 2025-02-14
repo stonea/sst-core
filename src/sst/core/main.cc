@@ -428,6 +428,7 @@ struct SimThreadInfo_t
     // Time / stats information
     double      build_time;
     double      run_time;
+    double      pure_run_time;
     UnitAlgebra simulated_time;
     uint64_t    max_tv_depth;
     uint64_t    current_tv_depth;
@@ -615,6 +616,7 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
          */
         sim->adjustTimeAtSimEnd();
         barrier.wait();
+        info.pure_run_time   = (double)sst_get_cpu_time() - start_run;
 
         sim->complete();
         barrier.wait();
@@ -1130,6 +1132,7 @@ main(int argc, char* argv[])
     for ( uint32_t i = 1; i < world_size.thread; i++ ) {
         threadInfo[0].simulated_time = std::max(threadInfo[0].simulated_time, threadInfo[i].simulated_time);
         threadInfo[0].run_time       = std::max(threadInfo[0].run_time, threadInfo[i].run_time);
+        threadInfo[0].pure_run_time  = std::max(threadInfo[0].pure_run_time, threadInfo[i].pure_run_time);
         threadInfo[0].build_time     = std::max(threadInfo[0].build_time, threadInfo[i].build_time);
 
         threadInfo[0].max_tv_depth = std::max(threadInfo[0].max_tv_depth, threadInfo[i].max_tv_depth);
@@ -1139,9 +1142,10 @@ main(int argc, char* argv[])
 
     double build_time = (end_serial_build - start) + threadInfo[0].build_time;
     double run_time   = threadInfo[0].run_time;
+    double pure_run_time = threadInfo[0].pure_run_time;
     double total_time = total_end_time - start;
 
-    double max_run_time = 0, max_build_time = 0, max_total_time = 0;
+    double max_run_time = 0, max_pure_run_time = 0, max_build_time = 0, max_total_time = 0;
 
     uint64_t local_max_tv_depth      = threadInfo[0].max_tv_depth;
     uint64_t global_max_tv_depth     = 0;
@@ -1158,6 +1162,7 @@ main(int argc, char* argv[])
     uint64_t local_sync_data_size = threadInfo[0].sync_data_size;
 
     MPI_Allreduce(&run_time, &max_run_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&pure_run_time, &max_pure_run_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&build_time, &max_build_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&total_time, &max_total_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&local_max_tv_depth, &global_max_tv_depth, 1, MPI_UINT64_T, MPI_MAX, MPI_COMM_WORLD);
@@ -1170,6 +1175,7 @@ main(int argc, char* argv[])
 #else
     max_build_time = build_time;
     max_run_time = run_time;
+    max_pure_run_time = pure_run_time;
     max_total_time = total_time;
     global_max_tv_depth = local_max_tv_depth;
     global_current_tv_depth = local_current_tv_depth;
@@ -1213,6 +1219,7 @@ main(int argc, char* argv[])
         g_output.output("Simulation Timing Information (Wall Clock Times):\n");
         g_output.output("  Build time:                      %f seconds\n", max_build_time);
         g_output.output("  Run loop time:                   %f seconds\n", max_run_time);
+        g_output.output("  Pure run time:                   %f seconds\n", max_pure_run_time);
         g_output.output("  Total time:                      %f seconds\n", max_total_time);
         g_output.output("\n");
         g_output.output(
