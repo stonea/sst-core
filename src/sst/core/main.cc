@@ -428,7 +428,13 @@ struct SimThreadInfo_t
     // Time / stats information
     double      build_time;
     double      run_time;
-    double      pure_run_time;
+
+    double stagetime_init;
+    double stagetime_setup;
+    double stagetime_run;
+    double stagetime_complete;
+    double stagetime_finish;
+
     UnitAlgebra simulated_time;
     uint64_t    max_tv_depth;
     uint64_t    current_tv_depth;
@@ -574,12 +580,15 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
 #endif
             }
             barrier.wait();
-
+            double clock_init_start = sst_get_cpu_time();
             sim->initialize();
+            info.stagetime_init = sst_get_cpu_time() - clock_init_start;
             barrier.wait();
 
             /* Run Set */
+            double clock_setup_start = sst_get_cpu_time();
             sim->setup();
+            info.stagetime_setup = sst_get_cpu_time() - clock_setup_start;
             barrier.wait();
 
             /* Finalize all the stat outputs */
@@ -607,7 +616,9 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
 
     /* Run Simulation */
     if ( info.config->runMode() == SimulationRunMode::RUN || info.config->runMode() == SimulationRunMode::BOTH ) {
+        double clock_run_start = sst_get_cpu_time();
         sim->run();
+        info.stagetime_run = sst_get_cpu_time() - clock_run_start;
         barrier.wait();
 
         /* Adjust clocks at simulation end to
@@ -616,12 +627,15 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
          */
         sim->adjustTimeAtSimEnd();
         barrier.wait();
-        info.pure_run_time   = (double)sst_get_cpu_time() - start_run;
 
+        double clock_complete_start = sst_get_cpu_time();
         sim->complete();
+        info.stagetime_complete = sst_get_cpu_time() - clock_complete_start;
         barrier.wait();
 
+        double clock_finish_start = sst_get_cpu_time();
         sim->finish();
+        info.stagetime_finish = sst_get_cpu_time() - clock_finish_start;
         barrier.wait();
 
         /* Tell stat outputs simulation is done */
@@ -1132,8 +1146,13 @@ main(int argc, char* argv[])
     for ( uint32_t i = 1; i < world_size.thread; i++ ) {
         threadInfo[0].simulated_time = std::max(threadInfo[0].simulated_time, threadInfo[i].simulated_time);
         threadInfo[0].run_time       = std::max(threadInfo[0].run_time, threadInfo[i].run_time);
-        threadInfo[0].pure_run_time  = std::max(threadInfo[0].pure_run_time, threadInfo[i].pure_run_time);
         threadInfo[0].build_time     = std::max(threadInfo[0].build_time, threadInfo[i].build_time);
+
+        threadInfo[0].stagetime_init     = std::max(threadInfo[0].stagetime_init     , threadInfo[i].stagetime_init     );
+        threadInfo[0].stagetime_setup    = std::max(threadInfo[0].stagetime_setup    , threadInfo[i].stagetime_setup    );
+        threadInfo[0].stagetime_run      = std::max(threadInfo[0].stagetime_run      , threadInfo[i].stagetime_run      );
+        threadInfo[0].stagetime_complete = std::max(threadInfo[0].stagetime_complete , threadInfo[i].stagetime_complete );
+        threadInfo[0].stagetime_finish   = std::max(threadInfo[0].stagetime_finish   , threadInfo[i].stagetime_finish   );
 
         threadInfo[0].max_tv_depth = std::max(threadInfo[0].max_tv_depth, threadInfo[i].max_tv_depth);
         threadInfo[0].current_tv_depth += threadInfo[i].current_tv_depth;
@@ -1142,10 +1161,17 @@ main(int argc, char* argv[])
 
     double build_time = (end_serial_build - start) + threadInfo[0].build_time;
     double run_time   = threadInfo[0].run_time;
-    double pure_run_time = threadInfo[0].pure_run_time;
+    double stagetime_init     = threadInfo[0].stagetime_init;
+    double stagetime_setup    = threadInfo[0].stagetime_setup;
+    double stagetime_run      = threadInfo[0].stagetime_run ;
+    double stagetime_complete = threadInfo[0].stagetime_complete;
+    double stagetime_finish   = threadInfo[0].stagetime_finish;
+
     double total_time = total_end_time - start;
 
-    double max_run_time = 0, max_pure_run_time = 0, max_build_time = 0, max_total_time = 0;
+    double max_run_time = 0, max_build_time = 0, max_total_time = 0;
+    double max_stagetime_init = 0, max_stagetime_setup = 0, max_stagetime_run = 0, max_stagetime_complete = 0,
+           max_stagetime_finish = 0;
 
     uint64_t local_max_tv_depth      = threadInfo[0].max_tv_depth;
     uint64_t global_max_tv_depth     = 0;
@@ -1162,9 +1188,15 @@ main(int argc, char* argv[])
     uint64_t local_sync_data_size = threadInfo[0].sync_data_size;
 
     MPI_Allreduce(&run_time, &max_run_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&pure_run_time, &max_pure_run_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&build_time, &max_build_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&total_time, &max_total_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+    MPI_Allreduce(&stagetime_init, &max_stagetime_init, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&stagetime_setup, &max_stagetime_setup, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&stagetime_run, &max_stagetime_run, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&stagetime_complete, &max_stagetime_complete, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&stagetime_finish, &max_stagetime_finish, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
     MPI_Allreduce(&local_max_tv_depth, &global_max_tv_depth, 1, MPI_UINT64_T, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&local_current_tv_depth, &global_current_tv_depth, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&local_sync_data_size, &global_max_sync_data_size, 1, MPI_UINT64_T, MPI_MAX, MPI_COMM_WORLD);
@@ -1175,8 +1207,14 @@ main(int argc, char* argv[])
 #else
     max_build_time = build_time;
     max_run_time = run_time;
-    max_pure_run_time = pure_run_time;
     max_total_time = total_time;
+
+    max_stagetime_init = stagetime_init;
+    max_stagetime_setup = stagetime_setup;
+    max_stagetime_run = stagetime_run;
+    max_stagetime_complete = stagetime_complete;
+    max_stagetime_finish = stagetime_finish;
+
     global_max_tv_depth = local_max_tv_depth;
     global_current_tv_depth = local_current_tv_depth;
     global_max_sync_data_size = 0;
@@ -1219,8 +1257,13 @@ main(int argc, char* argv[])
         g_output.output("Simulation Timing Information (Wall Clock Times):\n");
         g_output.output("  Build time:                      %f seconds\n", max_build_time);
         g_output.output("  Run loop time:                   %f seconds\n", max_run_time);
-        g_output.output("  Pure run time:                   %f seconds\n", max_pure_run_time);
         g_output.output("  Total time:                      %f seconds\n", max_total_time);
+        g_output.output("\n");
+        g_output.output("  Init stage Time:                 %f seconds\n", max_stagetime_init);
+        g_output.output("  Setup stage Time:                %f seconds\n", max_stagetime_setup);
+        g_output.output("  Run stage Time:                  %f seconds\n", max_stagetime_run);
+        g_output.output("  Complete stage Time:             %f seconds\n", max_stagetime_complete);
+        g_output.output("  Finish stage Time:               %f seconds\n", max_stagetime_finish);
         g_output.output("\n");
         g_output.output(
             "Simulated time:                    %s\n", threadInfo[0].simulated_time.toStringBestSI().c_str());
