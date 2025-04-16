@@ -913,7 +913,7 @@ main(int argc, char* argv[])
         double graph_gen_time = sst_get_cpu_time() - start_graph_gen;
 
         // If verbose level is high enough, compute the total number
-        // components in the simulation.  NOTE: if parallel-load is
+        // components and links in the simulation.  NOTE: if parallel-load is
         // enabled, then the parittioning won't actually happen and all
         // ranks already have their parts of the graph.
         uint64_t comp_count = 0;
@@ -921,8 +921,8 @@ main(int argc, char* argv[])
             if ( !cfg.parallel_load() && myRank.rank == 0 ) { comp_count = graph->getNumComponents(); }
 #ifdef SST_CONFIG_HAVE_MPI
             else if ( cfg.parallel_load() ) {
-                uint64_t my_count = graph->getNumComponentsInMPIRank(myRank.rank);
-                MPI_Allreduce(&my_count, &comp_count, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
+                uint64_t my_comp_count = graph->getNumComponentsInMPIRank(myRank.rank);
+                MPI_Allreduce(&my_comp_count, &comp_count, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
             }
 #endif
         }
@@ -931,6 +931,24 @@ main(int argc, char* argv[])
             g_output.verbose(CALL_INFO, 1, 0, "# ------------------------------------------------------------\n");
             g_output.verbose(CALL_INFO, 1, 0, "# Graph construction took %f seconds.\n", graph_gen_time);
             g_output.verbose(CALL_INFO, 1, 0, "# Graph contains %" PRIu64 " components\n", comp_count);
+        }
+
+        uint64_t total_comp_count = 0;
+        uint64_t total_link_count = 0;
+        if ( !cfg.parallel_load() && myRank.rank == 0 ) {
+          total_comp_count = graph->getNumComponents();
+          total_link_count = graph->getNumLinks();
+        } else if ( cfg.parallel_load() ) {
+          uint64_t my_comp_count = graph->getNumComponents();
+          uint64_t my_link_count = graph->getNumLinks();
+          MPI_Allreduce(&my_comp_count, &total_comp_count, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
+          MPI_Allreduce(&my_link_count, &total_link_count, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
+        }
+
+        if ( myRank.rank == 0 ) {
+            g_output.output("# ------------------------------------------------------------\n");
+            g_output.output("# Graph contains %" PRIu64 " total config components\n", total_comp_count);
+            g_output.output("# Graph contains %" PRIu64 " total config links\n", total_link_count);
         }
 
         ////// End ConfigGraph Creation //////

@@ -674,7 +674,6 @@ ConfigGraph::getNumComponentsInMPIRank(uint32_t rank)
     return count;
 }
 
-
 void
 ConfigGraph::setComponentRanks(RankInfo rank)
 {
