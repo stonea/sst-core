@@ -77,6 +77,9 @@ class Simulation_impl
 {
 
 public:
+
+    void reportLinks();
+
     SST::Core::Serialization::ObjectMap* getComponentObjectMap();
 
     /********  Public API inherited from Simulation ********/

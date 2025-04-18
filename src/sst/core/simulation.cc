@@ -486,7 +486,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
     for ( ConfigComponentMap_t::const_iterator iter = graph.comps.begin(); iter != graph.comps.end(); ++iter ) {
         ConfigComponent* ccomp = *iter;
         if ( ccomp->rank == myRank ) {
-            compInfoMap.insert(new ComponentInfo(ccomp, ccomp->name, nullptr, new LinkMap()));
+            compInfoMap.insert(new ComponentInfo(ccomp, ccomp->name, nullptr, newLinkMap(ccomp->key())));
         }
     }
 
@@ -508,7 +508,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
             // Check to see if this is loopback link
             if ( clink->component[0] == clink->component[1] && clink->port[0] == clink->port[1] ) {
                 // This is a loopback, so there is only one link
-                Link* link      = new Link(clink->order);
+                Link* link      = newLink(clink->order);
                 link->pair_link = link;
                 link->setLatency(clink->latency[0]);
 
@@ -519,6 +519,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
                     sim_output.fatal(CALL_INFO, 1, "Couldn't find ComponentInfo in map.");
                 }
                 cinfo->getLinkMap()->insertLink(clink->port[0], link);
+                //link->report();
             }
             else {
                 // Create a LinkPair to represent this link
@@ -541,6 +542,13 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
                     sim_output.fatal(CALL_INFO, 1, "Couldn't find ComponentInfo in map.");
                 }
                 cinfo->getLinkMap()->insertLink(clink->port[1], lp.getRight());
+              
+                /*if(myRank.rank == 0) {
+                  std::cout << "LINK PAIR FOR: " << clink->name << std::endl;
+                  lp.getLeft()->report();
+                  lp.getRight()->report();
+                  std::cout << std::endl << std::endl;
+                }*/
             }
         }
         // If we are on same rank, different threads and we are doing
@@ -552,7 +560,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
                 local = 1;
             }
 
-            Link* link = new Link(clink->order);
+            Link* link = newLink(clink->order);
             link->setLatency(clink->latency[local]);
 
             // Need to mutex to access cross_thread_links
@@ -577,6 +585,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
             ComponentInfo* cinfo = compInfoMap.getByID(clink->component[local]);
             if ( cinfo == nullptr ) { sim_output.fatal(CALL_INFO, 1, "Couldn't find ComponentInfo in map."); }
             cinfo->getLinkMap()->insertLink(clink->port[local], link);
+//            link->report();
         }
         // If the components are not in the same thread, then the
         // SyncManager will handle things
@@ -615,9 +624,31 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
 
             lp.getLeft()->send_queue = sync_q;
             lp.getRight()->setAsSyncLink();
+
+            /*if(myRank.rank == 0) {
+                std::cout << "LINK PAIR FOR: " << clink->name << std::endl;
+                lp.getLeft()->report();
+                lp.getRight()->report();
+                std::cout << std::endl << std::endl;
+            }*/
         }
     }
     return 0;
+}
+
+
+void Simulation_impl::reportLinks()
+{
+  for(auto comp = compInfoMap.begin(); comp != compInfoMap.end(); comp++) {
+    ComponentInfo* compinfo = *comp;
+
+    for ( auto j : *compinfo->getLinkMap()) {
+      Link* link = j.second;
+      if(link != nullptr) {
+        link->report();
+      }
+    }
+  }
 }
 
 

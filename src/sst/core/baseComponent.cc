@@ -95,9 +95,12 @@ BaseComponent::setDefaultTimeBaseForLinks(TimeConverter* tc)
 {
     LinkMap* myLinks = my_info->getLinkMap();
     if ( nullptr != myLinks ) {
-        for ( std::pair<std::string, Link*> p : myLinks->getLinkMap() ) {
+        for ( std::pair<std::string, Link*> p : *myLinks ) {
             if ( nullptr == p.second->getDefaultTimeBase() && p.second->isConfigured() ) {
                 p.second->setDefaultTimeBase(tc);
+            }
+            if(gUseVirtualLinks) {
+                delete p.second;
             }
         }
     }
@@ -272,7 +275,7 @@ BaseComponent::configureLink(const std::string& name, TimeConverter* time_base, 
             // link map
             if ( nullptr != tmp ) {
                 if ( nullptr == myLinks ) {
-                    myLinks           = new LinkMap();
+                    myLinks           = newLinkMap(my_info->getID());
                     my_info->link_map = myLinks;
                 }
                 myLinks->insertLink(name, tmp);

@@ -23,6 +23,8 @@ using namespace SST::Statistics;
 namespace SST {
 class SubComponent;
 
+int getComponentCount();
+
 /**
  * Main component object for the simulation.
  *  All models inherit from this.

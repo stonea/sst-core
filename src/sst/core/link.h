@@ -19,6 +19,11 @@
 
 namespace SST {
 
+class Link;
+
+extern bool gUseVirtualLinks;
+Link* newLink(LinkId_t tag);
+
 #define _LINK_DBG(fmt, args...) __DBG(DBG_LINK, Link, fmt, ##args)
 
 class ActivityQueue;
@@ -34,8 +39,6 @@ namespace Profile {
 class EventHandlerProfileTool;
 }
 
-class Link;
-
 template <>
 class SST::Core::Serialization::serialize_impl<Link*>
 {
@@ -46,6 +49,7 @@ class SST::Core::Serialization::serialize_impl<Link*>
     void operator()(Link*& s, SST::Core::Serialization::serializer& ser, const char* name);
 };
 
+int getLinksCount();
 
 /** Link between two components. Carries events */
 class alignas(64) Link
@@ -62,45 +66,46 @@ public:
     friend class Simulation_impl;
     friend class SyncManager;
     friend class ComponentInfo;
+    friend Link* newLink(LinkId_t tag);
 
-    ~Link();
-
-    /** Set additional Latency to be added to events being sent out of this link
-     * @param cycles Number of Cycles to be added
-     * @param timebase Base Units of cycles
-     */
-    void addSendLatency(int cycles, const std::string& timebase);
+    virtual ~Link();
 
     /** Set additional Latency to be added to events being sent out of this link
      * @param cycles Number of Cycles to be added
      * @param timebase Base Units of cycles
      */
-    void addSendLatency(SimTime_t cycles, TimeConverter* timebase);
+    virtual void addSendLatency(int cycles, const std::string& timebase);
+
+    /** Set additional Latency to be added to events being sent out of this link
+     * @param cycles Number of Cycles to be added
+     * @param timebase Base Units of cycles
+     */
+    virtual void addSendLatency(SimTime_t cycles, TimeConverter* timebase);
 
     /** Set additional Latency to be added on to events coming in on this link.
      * @param cycles Number of Cycles to be added
      * @param timebase Base Units of cycles
      */
-    void addRecvLatency(int cycles, const std::string& timebase);
+    virtual void addRecvLatency(int cycles, const std::string& timebase);
 
     /** Set additional Latency to be added on to events coming in on this link.
      * @param cycles Number of Cycles to be added
      * @param timebase Base Units of cycles
      */
-    void addRecvLatency(SimTime_t cycles, TimeConverter* timebase);
+    virtual void addRecvLatency(SimTime_t cycles, TimeConverter* timebase);
 
     /** Set the callback function to be called when a message is
      * delivered. Not available for Polling links.
      * @param functor Functor to call when message is delivered
      */
-    void setFunctor(Event::HandlerBase* functor);
+    virtual void setFunctor(Event::HandlerBase* functor);
 
     /** Replace the callback function to be called when a message is
      * delivered. Any previous handler will be deleted.
      * Not available for Polling links.
      * @param functor Functor to call when message is delivered
      */
-    void replaceFunctor(Event::HandlerBase* functor);
+    virtual void replaceFunctor(Event::HandlerBase* functor);
 
     /** Send an event over the link with additional delay. Sends an event
      * over a link with an additional delay specified with a
@@ -110,7 +115,7 @@ public:
      * @param tc - time converter to specify units for the additional delay
      * @param event - the Event to send
      */
-    inline void send(SimTime_t delay, TimeConverter* tc, Event* event)
+    virtual void send(SimTime_t delay, TimeConverter* tc, Event* event)
     {
         send_impl(tc->convertToCoreTime(delay), event);
     }
@@ -121,12 +126,12 @@ public:
      * @param delay The additional delay, in units of the default Link timebase
      * @param event The event to send
      */
-    inline void send(SimTime_t delay, Event* event) { send_impl(delay * defaultTimeBase, event); }
+    virtual void send(SimTime_t delay, Event* event) { send_impl(delay * defaultTimeBase, event); }
 
     /** Send an event with the Link's default delay
      * @param event The event to send
      */
-    inline void send(Event* event) { send_impl(0, event); }
+    virtual void send(Event* event) { send_impl(0, event); }
 
 
     /** Retrieve a pending event from the Link. For links which do not
@@ -136,43 +141,43 @@ public:
      * @return Event if one is available
      * @return nullptr if no Event is available
      */
-    Event* recv();
+    virtual Event* recv();
 
     /** Manually set the default detaulTimeBase
      * @param tc TimeConverter object for the timebase
      */
-    void setDefaultTimeBase(TimeConverter* tc);
+    virtual void setDefaultTimeBase(TimeConverter* tc);
 
     /** Return the default Time Base for this link
      * @return the default Time Base for this link
      */
-    TimeConverter* getDefaultTimeBase();
+    virtual TimeConverter* getDefaultTimeBase();
 
     /** Return the default Time Base for this link
      * @return the default Time Base for this link
      */
-    const TimeConverter* getDefaultTimeBase() const;
+    virtual const TimeConverter* getDefaultTimeBase() const;
 
     /** Return the ID of this link
      * @return the unique ID for this link
      */
-    LinkId_t getId() { return tag; }
+    virtual LinkId_t getId() { return tag; }
 
     /** Send data during the init() or complete() phase.
      * @param data event to send
      */
-    void sendUntimedData(Event* data);
+    virtual void sendUntimedData(Event* data);
 
     /** Receive an event (if any) during the init() or complete() phase.
      * @return Event if one is available
      * @return nullptr if no Event is available
      */
-    Event* recvUntimedData();
+    virtual Event* recvUntimedData();
 
     /** Return whether link has been configured
      * @return whether link is configured
      */
-    bool isConfigured() { return type != UNINITIALIZED; }
+    virtual bool isConfigured() { return type != UNINITIALIZED; }
 
 #ifdef __SST_DEBUG_EVENT_TRACKING__
     void setSendingComponentInfo(const std::string& comp_in, const std::string& type_in, const std::string& port_in)
@@ -188,15 +193,17 @@ public:
 
 #endif
 
+    virtual void report() const;
+
 protected:
     Link();
 
-    void setAsSyncLink() { type = SYNC; }
+    virtual void setAsSyncLink() { type = SYNC; }
 
     /**
        Set the delivery_info for the link
      */
-    void setDeliveryInfo(uintptr_t info) { delivery_info = info; }
+    virtual void setDeliveryInfo(uintptr_t info) { delivery_info = info; }
 
     /** Send an event over the link with additional delay. Sends an event
      * over a link with an additional delay specified with a
@@ -205,7 +212,7 @@ protected:
      * @param delay - additional total delay to add
      * @param event - the Event to send
      */
-    void send_impl(SimTime_t delay, Event* event);
+    virtual void send_impl(SimTime_t delay, Event* event);
 
     // Since Links are found in pairs, I will keep all the information
     // needed for me to send and deliver an event to the other side of
@@ -252,6 +259,7 @@ private:
     Mode_t     mode;
     LinkId_t   tag;
 
+protected:
     /** Create a new link with a given tag
 
         The tag is used for two different things depending on where
@@ -266,26 +274,27 @@ private:
      */
     Link(LinkId_t tag);
 
+private:
     Link(const Link& l);
 
     /** Specifies that this link has no callback, and is poll-based only */
-    void setPolling();
+    virtual void setPolling();
 
     /** Causes an event to be delivered to the registered callback */
-    inline void deliverEvent(Event* event) const { (*reinterpret_cast<Event::HandlerBase*>(delivery_info))(event); }
+    virtual void deliverEvent(Event* event) const { (*reinterpret_cast<Event::HandlerBase*>(delivery_info))(event); }
 
     /** Set minimum link latency */
-    void setLatency(Cycle_t lat);
+    virtual void setLatency(Cycle_t lat);
 
-    void sendUntimedData_sync(Event* data);
-    void finalizeConfiguration();
-    void prepareForComplete();
+    virtual void sendUntimedData_sync(Event* data);
+    virtual void finalizeConfiguration();
+    virtual void prepareForComplete();
 
-    std::string
+    virtual std::string
     createUniqueGlobalLinkName(RankInfo local_rank, uintptr_t local_ptr, RankInfo remote_rank, uintptr_t remote_ptr);
 
 
-    void addProfileTool(SST::Profile::EventHandlerProfileTool* tool, const EventHandlerMetaData& mdata);
+    virtual void addProfileTool(SST::Profile::EventHandlerProfileTool* tool, const EventHandlerMetaData& mdata);
 
 
     LinkSendProfileToolList* profile_tools;
@@ -309,6 +318,45 @@ public:
     }
 };
 
+class VirtualLink : public Link
+{
+public:
+    VirtualLink(int tag);
+
+    virtual void addSendLatency(int cycles, const std::string& timebase);
+    virtual void addSendLatency(SimTime_t cycles, TimeConverter* timebase);
+    virtual void addRecvLatency(int cycles, const std::string& timebase);
+    virtual void addRecvLatency(SimTime_t cycles, TimeConverter* timebase);
+    virtual void setFunctor(Event::HandlerBase* functor);
+    virtual void replaceFunctor(Event::HandlerBase* functor);
+    virtual void send(SimTime_t delay, TimeConverter* tc, Event* event);
+    virtual void send(SimTime_t delay, Event* event);
+    virtual void send(Event* event);
+    virtual Event* recv();
+    virtual void setDefaultTimeBase(TimeConverter* tc);
+    virtual TimeConverter* getDefaultTimeBase();
+    virtual const TimeConverter* getDefaultTimeBase() const;
+    virtual LinkId_t getId();
+    virtual void sendUntimedData(Event* data);
+    virtual Event* recvUntimedData();
+    virtual bool isConfigured();
+    virtual void report() const;
+
+protected:
+    virtual void setAsSyncLink();
+    virtual void setDeliveryInfo(uintptr_t info);
+    virtual void send_impl(SimTime_t delay, Event* event);
+
+private:
+    virtual void setPolling();
+    virtual void deliverEvent(Event* event) const;
+    virtual void setLatency(Cycle_t lat);
+    virtual void sendUntimedData_sync(Event* data);
+    virtual void finalizeConfiguration();
+    virtual void prepareForComplete();
+    virtual std::string createUniqueGlobalLinkName(RankInfo local_rank, uintptr_t local_ptr, RankInfo remote_rank, uintptr_t remote_ptr);
+    virtual void addProfileTool(SST::Profile::EventHandlerProfileTool* tool, const EventHandlerMetaData& mdata);
+};
 
 } // namespace SST
 

@@ -20,6 +20,14 @@
 
 namespace SST {
 
+LinkMap* newLinkMap(int onComponentId) {
+    if(gUseVirtualLinks) {
+        return new VirtualLinkMap(onComponentId);
+    } else {
+      return new LinkMap();
+    }
+}
+
 ComponentInfo::ComponentInfo(ComponentId_t id, const std::string& name) :
     id(id),
     parent_info(nullptr),
@@ -38,7 +46,7 @@ ComponentInfo::ComponentInfo(ComponentId_t id, const std::string& name) :
     slot_name(""),
     slot_num(-1),
     share_flags(0)
-{}
+{ }
 
 ComponentInfo::ComponentInfo() :
     id(-1),
@@ -58,7 +66,7 @@ ComponentInfo::ComponentInfo() :
     slot_name(""),
     slot_num(-1),
     share_flags(0)
-{}
+{ }
 
 // ComponentInfo::ComponentInfo(ComponentId_t id, ComponentInfo* parent_info, const std::string& type, const Params
 // *params, const ComponentInfo *parent) :
@@ -143,7 +151,7 @@ ComponentInfo::ComponentInfo(
         }
         subComponents.emplace_hint(
             subComponents.end(), std::piecewise_construct, std::make_tuple(sc->id),
-            std::forward_as_tuple(sc, sub_name, this, new LinkMap()));
+            std::forward_as_tuple(sc, sub_name, this, newLinkMap(getID())));
     }
 }
 
@@ -185,7 +193,9 @@ void
 ComponentInfo::serialize_comp(SST::Core::Serialization::serializer& ser)
 {
     ser& component;
-    ser& link_map;
+
+    assert(0);
+//    ser& link_map; *AIS*
     for ( auto it = subComponents.begin(); it != subComponents.end(); ++it ) {
         it->second.serialize_comp(ser);
     }
@@ -282,7 +292,7 @@ ComponentInfo::serialize_order(SST::Core::Serialization::serializer& ser)
 LinkMap*
 ComponentInfo::getLinkMap()
 {
-    if ( link_map == nullptr ) link_map = new LinkMap();
+    if ( link_map == nullptr ) link_map = newLinkMap(getID());
     return link_map;
 }
 
@@ -313,8 +323,12 @@ void
 ComponentInfo::finalizeLinkConfiguration() const
 {
     if ( nullptr != link_map ) {
-        for ( auto& i : link_map->getLinkMap() ) {
+        for ( auto& i : *link_map ) {
             i.second->finalizeConfiguration();
+            if(gUseVirtualLinks) {
+                delete i.second;
+                delete &i;
+            }
         }
     }
     for ( auto& s : subComponents ) {
@@ -326,8 +340,12 @@ void
 ComponentInfo::prepareForComplete() const
 {
     if ( nullptr != link_map ) {
-        for ( auto& i : link_map->getLinkMap() ) {
+        for ( auto& i : *link_map ) {
             i.second->prepareForComplete();
+            if(gUseVirtualLinks) {
+                delete i.second;
+                delete &i;
+            }
         }
     }
     for ( auto& s : subComponents ) {
@@ -425,6 +443,96 @@ ComponentInfo::test_printComponentInfoHierarchy(int indent)
     for ( auto& x : subComponents ) {
         x.second.test_printComponentInfoHierarchy(indent + 1);
     }
+}
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+VirtualLinkMap::VirtualLinkMap(ComponentId_t fromComponentId) :
+  fromComponentId(fromComponentId)
+{
+    std::cout << "Constructed from component ID: " << fromComponentId << std::endl;
+}
+
+void VirtualLinkMap::serialize_order(SST::Core::Serialization::serializer& ser) {
+    assert(false);
+}
+
+void VirtualLinkMap::addSelfPort(const std::string& name) {
+    assert(false);
+}
+
+bool VirtualLinkMap::isSelfPort(const std::string& name) const {
+    assert(false);
+}
+
+void VirtualLinkMap::insertLink(const std::string& name, Link* link) {
+    /* no op */
+}
+
+void VirtualLinkMap::removeLink(const std::string& name) {
+    assert(false);
+}
+
+Link* VirtualLinkMap::getLink(const std::string& name) {
+    assert(false);
+}
+
+bool VirtualLinkMap::empty() {
+    // Component 0 is the simulation component, all others are pongers
+    return fromComponentId == 0;
+}
+
+WrapConstLinkMapIterator VirtualLinkMap::begin() const {
+    return WrapConstLinkMapIterator(new ConstLinkMapIteratorForVirtualLinkMap(fromComponentId, 0));
+}
+
+WrapConstLinkMapIterator VirtualLinkMap::end() const {
+    return WrapConstLinkMapIterator(new ConstLinkMapIteratorForVirtualLinkMap(fromComponentId, -1));
+}
+
+// ----------------------------------------------------------------------------
+
+ConstLinkMapIteratorForVirtualLinkMap::ConstLinkMapIteratorForVirtualLinkMap(ComponentId_t id, int onLink)
+  : id(id)
+  , onLink(onLink)
+{ 
+    // Simulator component (id == 0) has no links
+    if(id == 0) {
+      onLink = -1;
+    }
+}
+
+ConstLinkMapIteratorForVirtualLinkMap::reference ConstLinkMapIteratorForVirtualLinkMap::operator*() const {
+  std::cout << "ID = " << id << " ONLINK = " << onLink << std::endl;
+
+         if(id == 1 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(0))); }
+    else if(id == 2 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(0))); }
+    else if(id == 2 && onLink == 1) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(1))); }
+    else if(id == 3 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(1))); }
+    else if(id == 3 && onLink == 1) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(2))); }
+    else if(id == 4 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(2))); }
+      
+    return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(UINT64_MAX)));
+}
+
+ConstLinkMapIteratorForVirtualLinkMap::ConstLinkMapIterator& ConstLinkMapIteratorForVirtualLinkMap::operator++() {
+    onLink++;
+      
+    if((id == 0 && onLink >= 0) ||
+       (id == 1 && onLink >= 1) ||
+       (id == 2 && onLink >= 2) ||
+       (id == 3 && onLink >= 2) ||
+       (id == 4 && onLink >= 1))
+    {
+      onLink = -1;
+    }
+}
+
+bool ConstLinkMapIteratorForVirtualLinkMap::operator!=(const ConstLinkMapIterator& other) const {
+    return id != dynamic_cast<const ConstLinkMapIteratorForVirtualLinkMap&>(other).id ||
+       onLink != dynamic_cast<const ConstLinkMapIteratorForVirtualLinkMap&>(other).onLink;
 }
 
 } // namespace SST

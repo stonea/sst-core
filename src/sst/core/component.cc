@@ -24,10 +24,16 @@ namespace SST {
 SST_ELI_DEFINE_INFO_EXTERN(Component)
 SST_ELI_DEFINE_CTOR_EXTERN(Component)
 
+static int totalNumComponents = 0;
+
+int getComponentCount() { return totalNumComponents; }
+
 Component::Component(ComponentId_t id) : BaseComponent(id)
 {
     // my_info = sim->getComponentInfo(id);
     // currentlyLoadingSubComponent = my_info;
+
+    totalNumComponents += 1;
 }
 
 Component::~Component() {}
@@ -60,6 +66,8 @@ Component::serialize_order(SST::Core::Serialization::serializer& ser)
 }
 
 // For serialization only
-Component::Component() : BaseComponent() {}
+Component::Component() : BaseComponent() {
+  totalNumComponents += 1;
+}
 
 } // namespace SST

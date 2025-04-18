@@ -50,6 +50,7 @@ REENABLE_WARNING
 #include "sst/core/threadsafe.h"
 #include "sst/core/timeLord.h"
 #include "sst/core/timeVortex.h"
+#include "sst/core/component.h"
 
 #include <cinttypes>
 #include <exception>
@@ -614,6 +615,8 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
         info.build_time = start_run - start_build;
     }
 
+  sim->reportLinks();
+
     /* Run Simulation */
     if ( info.config->runMode() == SimulationRunMode::RUN || info.config->runMode() == SimulationRunMode::BOTH ) {
         double clock_run_start = sst_get_cpu_time();
@@ -1158,6 +1161,9 @@ main(int argc, char* argv[])
     catch ( std::exception& e ) {
         g_output.fatal(CALL_INFO, -1, "Error encountered during simulation: %s\n", e.what());
     }
+
+    g_output.output("# Simulation contained %d components\n", getComponentCount());
+    g_output.output("# Simulation contained %d links\n", getLinksCount());
 
     double total_end_time = sst_get_cpu_time();
 

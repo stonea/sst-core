@@ -32,6 +32,16 @@
 
 namespace SST {
 
+bool gUseVirtualLinks = false; //true;
+
+Link* newLink(LinkId_t tag) {
+    if(gUseVirtualLinks) {
+        return new VirtualLink(tag);
+    } else {
+        return new Link(tag);
+    } 
+}
+
 void
 SST::Core::Serialization::serialize_impl<Link*>::operator()(Link*& s, SST::Core::Serialization::serializer& ser)
 {
@@ -483,6 +493,11 @@ private:
     std::vector<std::pair<SST::Profile::EventHandlerProfileTool*, uintptr_t>> tools;
 };
 
+static int totalNumLinks = 0;
+int getLinksCount() {
+  return totalNumLinks;
+}
+
 Link::Link(LinkId_t tag) :
     send_queue(nullptr),
     delivery_info(0),
@@ -494,7 +509,9 @@ Link::Link(LinkId_t tag) :
     mode(INIT),
     tag(tag),
     profile_tools(nullptr)
-{}
+{
+  totalNumLinks += 1;
+}
 
 Link::Link() :
     send_queue(nullptr),
@@ -507,7 +524,9 @@ Link::Link() :
     mode(INIT),
     tag(-1),
     profile_tools(nullptr)
-{}
+{
+  totalNumLinks += 1;
+}
 
 Link::~Link()
 {
@@ -809,5 +828,149 @@ Link::addProfileTool(SST::Profile::EventHandlerProfileTool* tool, const EventHan
     profile_tools->addProfileTool(tool, mdata);
 }
 
+#include <mpi.h>
+
+void Link::report() const {
+  int myRank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+
+  if(myRank == 0) {
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "LINK: " << this << std::endl;
+    std::cout << "send_queue: " << send_queue << std::endl;
+    std::cout << "send_queue: " << send_queue << std::endl;
+    std::cout << "delivery_info: " << delivery_info << std::endl;
+    std::cout << "defaultTimeBase: " << defaultTimeBase << std::endl;
+    std::cout << "latency: " << latency << std::endl;
+    std::cout << "pair_link: " << pair_link << std::endl;
+    std::cout << "current_time: " << current_time << std::endl;
+    std::cout << "type: ";
+    if(type == POLL) { std::cout << "POLL"; }
+    if(type == HANDLER) { std::cout << "HANDLER"; }
+    if(type == SYNC) { std::cout << "SYNC"; }
+    if(type == UNINITIALIZED) { std::cout << "UNINITIALIZED"; }
+    std::cout << std::endl;
+    std::cout << "mode: ";
+    if(type == POLL) { std::cout << "INIT"; }
+    if(type == HANDLER) { std::cout << "RUN"; }
+    if(type == SYNC) { std::cout << "COMPLETE"; }
+    std::cout << std::endl;
+    std::cout << "tag: " << tag << std::endl;
+    std::cout << "profile_tools: " << profile_tools << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+  }
+}
+
+
+// ============================================================================
+
+bool calledPrepareForComplete    = false;
+bool calledFinalizeConfiguration = false;
+
+VirtualLink::VirtualLink(int tag) : Link(tag) { }
+
+void VirtualLink::addSendLatency(int cycles, const std::string& timebase) {
+  assert(false);
+}
+
+void VirtualLink::addSendLatency(SimTime_t cycles, TimeConverter* timebase) {
+  assert(false);
+}
+
+void VirtualLink::addRecvLatency(int cycles, const std::string& timebase) {
+  assert(false);
+}
+
+void VirtualLink::addRecvLatency(SimTime_t cycles, TimeConverter* timebase) {
+  assert(false);
+}
+
+void VirtualLink::setFunctor(Event::HandlerBase* functor) { /* no op */ }
+
+void VirtualLink::replaceFunctor(Event::HandlerBase* functor) {
+  assert(false);
+}
+
+void VirtualLink::send(SimTime_t delay, TimeConverter* tc, Event* event) {
+  assert(false);
+}
+
+void VirtualLink::send(SimTime_t delay, Event* event) {
+  assert(false);
+}
+
+void VirtualLink::send(Event* event) {
+  std::cout << "TODO: VirtualLink::send" << std::endl;
+}
+
+Event* VirtualLink::recv() {
+  assert(false);
+}
+
+void VirtualLink::setDefaultTimeBase(TimeConverter* tc) { /* no op */ }
+
+TimeConverter* VirtualLink::getDefaultTimeBase() {
+    return Simulation_impl::getSimulation()->getTimeLord()->getTimeConverter("1s");
+}
+
+const TimeConverter* VirtualLink::getDefaultTimeBase() const {
+    return Simulation_impl::getSimulation()->getTimeLord()->getTimeConverter("1s");
+}
+
+LinkId_t VirtualLink::getId() {
+  assert(false);
+}
+
+void VirtualLink::sendUntimedData(Event* data) {
+  assert(false);
+}
+
+Event* VirtualLink::recvUntimedData() {
+  assert(false);
+}
+
+bool VirtualLink::isConfigured() {
+    return calledFinalizeConfiguration;
+}
+
+void VirtualLink::report() const { /* no op */ }
+
+void VirtualLink::setAsSyncLink() { /* no op */ }
+
+void VirtualLink::setDeliveryInfo(uintptr_t info) { /* no op */ }
+
+void VirtualLink::send_impl(SimTime_t delay, Event* event) {
+  assert(false);
+}
+
+void VirtualLink::setPolling() {
+  assert(false);
+}
+
+void VirtualLink::deliverEvent(Event* event) const {
+  assert(false);
+}
+
+void VirtualLink::setLatency(Cycle_t lat) { /* no op */ }
+
+void VirtualLink::sendUntimedData_sync(Event* data) {
+  assert(false);
+}
+
+void VirtualLink::finalizeConfiguration() {
+    calledFinalizeConfiguration = true;
+}
+
+void VirtualLink::prepareForComplete() {
+  calledPrepareForComplete = true;
+}
+
+std::string VirtualLink::createUniqueGlobalLinkName(RankInfo local_rank, uintptr_t local_ptr, RankInfo remote_rank, uintptr_t remote_ptr) {
+  assert(false);
+}
+
+void VirtualLink::addProfileTool(SST::Profile::EventHandlerProfileTool* tool, const EventHandlerMetaData& mdata) {
+  assert(false);
+}
 
 } // namespace SST
