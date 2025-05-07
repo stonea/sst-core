@@ -49,7 +49,10 @@ struct ConstLinkMapIteratorOverMap : ConstLinkMapIterator
       return ref;
     }
 
-    virtual ConstLinkMapIterator& operator++() { linkMapIter++; }
+    virtual ConstLinkMapIterator& operator++() {
+      linkMapIter++;
+      return *this;
+    }
     virtual bool operator!=(const ConstLinkMapIterator& other) const {
         return linkMapIter !=
             dynamic_cast<const ConstLinkMapIteratorOverMap&>(other).linkMapIter;
@@ -82,9 +85,15 @@ struct WrapConstLinkMapIterator
       delete iter;
     }
 
-    reference operator*() const { return *(*iter); }
-    ConstLinkMapIterator& operator++() { return (*iter).operator++(); }
-    bool operator!=(const WrapConstLinkMapIterator& other) const { return *iter != *(other.iter); }
+    reference operator*() const { 
+      return *(*iter);
+    }
+    ConstLinkMapIterator& operator++() {
+      return (*iter).operator++();
+    }
+    bool operator!=(const WrapConstLinkMapIterator& other) const {
+      return *iter != *(other.iter);
+    }
 };
 
 
@@ -200,7 +209,7 @@ private:
 public:
     LinkMap() /*: allowedPorts(nullptr)*/ {}
 
-    ~LinkMap()
+    virtual ~LinkMap()
     {
         // Delete all the links in the map
         for ( std::map<std::string, Link*>::iterator it = linkMap.begin(); it != linkMap.end(); ++it ) {
@@ -278,6 +287,7 @@ private:
 
 public:
     VirtualLinkMap(ComponentId_t fromComponentId);
+    virtual ~VirtualLinkMap();
 
     virtual void addSelfPort(const std::string& name);
     virtual bool isSelfPort(const std::string& name) const;

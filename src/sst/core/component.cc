@@ -70,4 +70,25 @@ Component::Component() : BaseComponent() {
   totalNumComponents += 1;
 }
 
+int64_t gNumPongers;
+sstCallback* gNorthPortFunc;
+sstCallback* gSouthPortFunc;
+
+void sst_setNumPongers(int64_t numPongers) {
+  gNumPongers = numPongers;
+}
+
+void sst_setNorthPortFunc(sstCallback* func) {
+  gNorthPortFunc = func;
+}
+
+void sst_setSouthPortFunc(sstCallback* func) {
+  gSouthPortFunc = func;
+}
+
+extern bool gUseVirtualLinks;
+bool sst_useVirtualLinks() {
+  return gUseVirtualLinks;
+}
+
 } // namespace SST

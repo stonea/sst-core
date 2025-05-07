@@ -104,6 +104,19 @@ protected:
     Component();
 };
 
+extern int64_t gNumPongers;
+typedef void (sstCallback)(SST::Event *);
+extern sstCallback* gNorthPortFunc;
+extern sstCallback* gSouthPortFunc;
+
+// *AIS*
+void sst_setNumPongers(int64_t numPongers);
+void sst_setNorthPortFunc(sstCallback* func);
+void sst_setSouthPortFunc(sstCallback* func);
+
+bool sst_useVirtualLinks();
+
+
 } // namespace SST
 
 // These macros allow you to register a base class for a set of

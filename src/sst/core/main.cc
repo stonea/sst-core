@@ -588,13 +588,16 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
 
             /* Run Set */
             double clock_setup_start = sst_get_cpu_time();
+        std::cout << "FFFFAAAAAAAAAAA" << std::endl;
             sim->setup();
+        std::cout << "GGGGAAAAAAAAAAA" << std::endl;
             info.stagetime_setup = sst_get_cpu_time() - clock_setup_start;
             barrier.wait();
 
             /* Finalize all the stat outputs */
             do_statoutput_start_simulation(info.myRank);
             barrier.wait();
+        std::cout << "HHHHAAAAAAAAAAA" << std::endl;
 
             sim->prepare_for_run();
         }
@@ -615,7 +618,7 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
         info.build_time = start_run - start_build;
     }
 
-  sim->reportLinks();
+//  sim->reportLinks();
 
     /* Run Simulation */
     if ( info.config->runMode() == SimulationRunMode::RUN || info.config->runMode() == SimulationRunMode::BOTH ) {
@@ -871,7 +874,6 @@ main(int argc, char* argv[])
             "Checkpoint requires %" PRIu32 " ranks and %" PRIu32 " threads\n",
             cpt_num_ranks, cpt_num_threads);
     }
-
     ////// Start ConfigGraph Creation //////
 
     double       start    = sst_get_cpu_time();

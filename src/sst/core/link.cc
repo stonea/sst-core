@@ -32,7 +32,8 @@
 
 namespace SST {
 
-bool gUseVirtualLinks = false; //true;
+//bool gUseVirtualLinks = false; //true;
+bool gUseVirtualLinks = true;
 
 Link* newLink(LinkId_t tag) {
     if(gUseVirtualLinks) {
@@ -511,6 +512,7 @@ Link::Link(LinkId_t tag) :
     profile_tools(nullptr)
 {
   totalNumLinks += 1;
+//  std::cout << "made link: " << tag << std::endl;
 }
 
 Link::Link() :
@@ -526,10 +528,13 @@ Link::Link() :
     profile_tools(nullptr)
 {
   totalNumLinks += 1;
+
+//  std::cout << "made link: " << tag << std::endl;
 }
 
 Link::~Link()
 {
+//  std::cout << "delete link: " << tag << std::endl;
     // Check to see if my pair_link is nullptr.  If not, let the other
     // link know I've been deleted
     if ( pair_link != nullptr && pair_link != this ) {
@@ -900,7 +905,15 @@ void VirtualLink::send(SimTime_t delay, Event* event) {
 }
 
 void VirtualLink::send(Event* event) {
-  std::cout << "TODO: VirtualLink::send" << std::endl;
+//  std::cout << "TODO: VirtualLink::send" << std::endl;
+
+//  Cycle_t cycle = current_time + delay + latency;
+//  event->setDeliveryTime(cycle);
+//  event->setDeliveryInfo(tag, delivery_info);
+
+//  event->setDeliveryInfo(tag, delivery_info);
+//  Simulation_impl::getSimulation()->getTimeVortex()->insert(event);
+//  std::cout << "TODO: VirtualLink::send done" << std::endl;
 }
 
 Event* VirtualLink::recv() {

@@ -452,9 +452,10 @@ ComponentInfo::test_printComponentInfoHierarchy(int indent)
 VirtualLinkMap::VirtualLinkMap(ComponentId_t fromComponentId) :
   fromComponentId(fromComponentId)
 {
-    std::cout << "Constructed from component ID: " << fromComponentId << std::endl;
 }
 
+VirtualLinkMap::~VirtualLinkMap() {}
+  
 void VirtualLinkMap::serialize_order(SST::Core::Serialization::serializer& ser) {
     assert(false);
 }
@@ -476,6 +477,18 @@ void VirtualLinkMap::removeLink(const std::string& name) {
 }
 
 Link* VirtualLinkMap::getLink(const std::string& name) {
+    //std::cout << "ON COMPONENT: " << fromComponentId << " get LINK: " << name << std::endl;
+
+    if(name == "northPort") {
+      if(fromComponentId > 1) { return new VirtualLink(fromComponentId - 2); }
+      else return nullptr;
+    } else if(name == "southPort") {
+      return new VirtualLink(fromComponentId - 1);
+    } else if(name == "westPort" || name == "eastPort") {
+      return nullptr;
+    } else {
+      std::cout << "unrecognized port " << name << " on component " << fromComponentId << std::endl;
+    }
     assert(false);
 }
 
@@ -504,30 +517,34 @@ ConstLinkMapIteratorForVirtualLinkMap::ConstLinkMapIteratorForVirtualLinkMap(Com
     }
 }
 
-ConstLinkMapIteratorForVirtualLinkMap::reference ConstLinkMapIteratorForVirtualLinkMap::operator*() const {
-  std::cout << "ID = " << id << " ONLINK = " << onLink << std::endl;
+extern int64_t gNumPongers;
 
-         if(id == 1 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(0))); }
-    else if(id == 2 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(0))); }
-    else if(id == 2 && onLink == 1) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(1))); }
-    else if(id == 3 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(1))); }
-    else if(id == 3 && onLink == 1) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(2))); }
-    else if(id == 4 && onLink == 0) { return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(2))); }
-      
-    return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(UINT64_MAX)));
+ConstLinkMapIteratorForVirtualLinkMap::reference ConstLinkMapIteratorForVirtualLinkMap::operator*() const {
+  //std::cout << "ID: " << id << " ONLINK: " << onLink << std::endl;
+
+  int64_t resultLinkId = UINT64_MAX;
+  if(id > 0) {
+    if(onLink == 0) {
+      resultLinkId = id-2;
+    } else if(onLink == 1) {
+      resultLinkId = id-1;
+    }
+  }
+  return *(new const std::pair<const std::string, Link*>(std::string(""), new VirtualLink(UINT64_MAX)));
 }
 
 ConstLinkMapIteratorForVirtualLinkMap::ConstLinkMapIterator& ConstLinkMapIteratorForVirtualLinkMap::operator++() {
     onLink++;
-      
+    
     if((id == 0 && onLink >= 0) ||
        (id == 1 && onLink >= 1) ||
-       (id == 2 && onLink >= 2) ||
-       (id == 3 && onLink >= 2) ||
-       (id == 4 && onLink >= 1))
+       (id == gNumPongers && onLink >= 1) ||
+       (onLink >= 2))
     {
       onLink = -1;
     }
+
+    return *this;
 }
 
 bool ConstLinkMapIteratorForVirtualLinkMap::operator!=(const ConstLinkMapIterator& other) const {

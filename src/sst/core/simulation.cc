@@ -364,7 +364,8 @@ Simulation_impl::parseSignalString(std::string& arg, std::string& name, Params& 
 Component*
 Simulation_impl::createComponent(ComponentId_t id, const std::string& name, Params& params)
 {
-    return factory->CreateComponent(id, name, params);
+    auto* res =  factory->CreateComponent(id, name, params);
+    return res;
 }
 
 void
@@ -522,6 +523,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
                 //link->report();
             }
             else {
+              if(!gUseVirtualLinks) { // *AIS*
                 // Create a LinkPair to represent this link
                 LinkPair lp(clink->order);
 
@@ -549,6 +551,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
                   lp.getRight()->report();
                   std::cout << std::endl << std::endl;
                 }*/
+              }
             }
         }
         // If we are on same rank, different threads and we are doing
@@ -671,7 +674,6 @@ Simulation_impl::performWireUp(ConfigGraph& graph, const RankInfo& myRank, SimTi
             if ( !cinfo->hasLinks() ) {
                 printf("WARNING: Building component \"%s\" with no links assigned.\n", ccomp->name.c_str());
             }
-
             tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
 
             cinfo->setComponent(tmp);

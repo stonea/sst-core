@@ -216,7 +216,18 @@ BaseComponent::getTimeConverter(const UnitAlgebra& base) const
 bool
 BaseComponent::isPortConnected(const std::string& name) const
 {
-    return (my_info->getLinkMap()->getLink(name) != nullptr);
+    Link *link = my_info->getLinkMap()->getLink(name);
+    bool result = link != nullptr;
+    if(gUseVirtualLinks) {
+      delete link;
+    }
+    return result;
+}
+
+Link* BaseComponent::getLinkByName(const std::string& name) const
+{
+    Link *link = my_info->getLinkMap()->getLink(name);
+    return link;
 }
 
 // Looks at parents' shared ports and returns the link connected to
@@ -259,6 +270,10 @@ BaseComponent::getLinkFromParentSharedPort(const std::string& port)
 Link*
 BaseComponent::configureLink(const std::string& name, TimeConverter* time_base, Event::HandlerBase* handler)
 {
+    if(gUseVirtualLinks) {
+      return nullptr; // *AIS*
+    }
+
     LinkMap* myLinks = my_info->getLinkMap();
 
     Link* tmp = nullptr;

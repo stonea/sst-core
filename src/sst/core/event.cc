@@ -28,7 +28,9 @@ Event::~Event() {}
 void
 Event::execute(void)
 {
+  std::cout << "execute ! " << std::endl;
     (*reinterpret_cast<HandlerBase*>(delivery_info))(this);
+  std::cout << "! execute done ! " << std::endl;
 }
 
 Event*
