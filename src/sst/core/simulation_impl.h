@@ -399,6 +399,8 @@ public:
     void endSimulation(void);
     void endSimulation(SimTime_t end);
 
+    static uint64_t getEventCount();
+
     typedef enum {
         SHUTDOWN_CLEAN,     /* Normal shutdown */
         SHUTDOWN_SIGNAL,    /* SIGINT or SIGTERM received */
@@ -557,6 +559,8 @@ public:
     SimTime_t currentSimCycle;
     int       currentPriority;
     SimTime_t endSimCycle;
+
+    static uint64_t eventCount;
 
     // Rank information
     RankInfo my_rank;

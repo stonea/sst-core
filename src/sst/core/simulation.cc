@@ -801,6 +801,7 @@ Simulation_impl::prepare_for_run()
 void
 Simulation_impl::run()
 {
+
 #if SST_PERFORMANCE_INSTRUMENTING
     std::string filename = "rank_" + std::to_string(my_rank.rank);
     filename += "_thread_" + std::to_string(my_rank.thread);
@@ -866,6 +867,10 @@ Simulation_impl::run()
         currentSimCycle = event_time;
 
         currentPriority = current_activity->getPriority();
+
+        if(current_activity->isEvent()) {
+          eventCount += 1;
+        }
 
         current_activity->execute();
 
@@ -946,6 +951,8 @@ Simulation_impl::run()
     fclose(fp);
 #endif
 
+    std::cout << "TOTAL EVENT COUNT: " << eventCount << std::endl;
+
     if ( num_ranks.rank != 1 && num_ranks.thread == 0 ) delete m_exit;
 }
 
@@ -997,6 +1004,12 @@ Simulation_impl::endSimulation(SimTime_t end)
     endSim      = true;
 
     exitBarrier.wait();
+}
+
+uint64_t
+Simulation_impl::getEventCount()
+{
+    return eventCount;
 }
 
 void
@@ -2087,5 +2100,6 @@ std::unordered_map<std::thread::id, Simulation_impl*> Simulation_impl::instanceM
 std::vector<Simulation_impl*>                         Simulation_impl::instanceVec_;
 std::atomic<int>                                      Simulation_impl::untimed_msg_count;
 Exit*                                                 Simulation_impl::m_exit;
+uint64_t Simulation_impl::eventCount = 0;
 
 } // namespace SST

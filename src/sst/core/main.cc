@@ -1184,8 +1184,11 @@ main(int argc, char* argv[])
     int64_t active_activities = 0, global_active_activities = 0;
     Core::MemPoolAccessor::getMemPoolUsage(mempool_size, active_activities);
 
+    uint64_t globalEventCount = 0;
+
 #ifdef SST_CONFIG_HAVE_MPI
     uint64_t local_sync_data_size = threadInfo[0].sync_data_size;
+    uint64_t local_eventCount = Simulation_impl::getEventCount();
 
     MPI_Allreduce(&run_time, &max_run_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&build_time, &max_build_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -1204,6 +1207,8 @@ main(int argc, char* argv[])
     MPI_Allreduce(&mempool_size, &max_mempool_size, 1, MPI_UINT64_T, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&mempool_size, &global_mempool_size, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&active_activities, &global_active_activities, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
+
+    MPI_Allreduce(&local_eventCount, &globalEventCount, 1, MPI_UINT64_T, MPI_SUM, MPI_COMM_WORLD);
 #else
     max_build_time = build_time;
     max_run_time = run_time;
@@ -1222,6 +1227,7 @@ main(int argc, char* argv[])
     max_mempool_size = mempool_size;
     global_mempool_size = mempool_size;
     global_active_activities = active_activities;
+    globalEventCount = Simulation_impl.getEventCount();
 #endif
 
     const uint64_t local_max_rss     = maxLocalMemSize();
@@ -1283,6 +1289,8 @@ main(int argc, char* argv[])
         g_output.output(
             "  Max Sync data size:              %s\n", global_max_sync_data_size_ua.toStringBestSI().c_str());
         g_output.output("  Global Sync data size:           %s\n", global_sync_data_size_ua.toStringBestSI().c_str());
+        g_output.output("\n");
+        g_output.output("Global Event Count:    %" PRIu64 "\n", globalEventCount);
         g_output.output("------------------------------------------------------------\n");
         g_output.output("\n");
         g_output.output("\n");
