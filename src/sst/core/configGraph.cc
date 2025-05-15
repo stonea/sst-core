@@ -664,6 +664,41 @@ ConfigComponent::checkPorts() const
     }
 }
 
+void ConfigGraph::printConfigGraphMemUsage() const {
+    int totalBytes_name = 0;
+    int totalBytes_type = 0;
+    int totalBytes_links = 0;
+    //int totalBytes_params = 0;
+    int totalBytes_coords = 0;
+    int numComps = 0;
+
+    for ( ConfigComponentMap_t::const_iterator iter = comps.begin(); iter != comps.end(); ++iter ) {
+        ConfigComponent* ccomp = *iter;
+
+        totalBytes_name   += ccomp->name.capacity();
+        totalBytes_type   += ccomp->type.capacity();
+        totalBytes_links  += (ccomp->links.capacity()  * sizeof(LinkId_t));
+        totalBytes_coords += (ccomp->coords.capacity() * sizeof(double));
+        numComps += 1;
+    }
+
+    // todo assert enabledStatNames empty
+    // todo assert sub-components empty
+    // todo assert stats-map is empty
+
+    auto avg = [&](int val) { return (double)val / numComps; };
+
+    std::cout << std::endl;
+    std::cout << "IN CONFIG COMPONENTS:" << std::endl;
+    std::cout << "=====================" << std::endl;
+    std::cout << "NUM COMPONENTS = " << numComps << std::endl;
+    std::cout << "sizeof(ConfigComponent) = " << sizeof(ConfigComponent) << std::endl;
+    std::cout << "Data spent on name:   " << totalBytes_name   << " avg=" << avg(totalBytes_name   ) << std::endl;
+    std::cout << "Data spent on type:   " << totalBytes_type   << " avg=" << avg(totalBytes_type   ) << std::endl;
+    std::cout << "Data spent on links:  " << totalBytes_links  << " avg=" << avg(totalBytes_links  ) << std::endl;
+    std::cout << "Data spent on coords: " << totalBytes_coords << " avg=" << avg(totalBytes_coords ) << std::endl;
+}
+
 size_t
 ConfigGraph::getNumComponentsInMPIRank(uint32_t rank)
 {

@@ -398,6 +398,8 @@ public:
         }
     }
 
+    void printConfigGraphMemUsage() const;
+
     ConfigGraph() : nextComponentId(0)
     {
         links.clear();

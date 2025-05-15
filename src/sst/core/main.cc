@@ -515,6 +515,8 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
 #endif
         barrier.wait();
 
+        info.graph->printConfigGraphMemUsage(); // ***AIS***
+
         // Create all the simulation components
         do_graph_wireup(info.graph, sim, info.myRank, info.min_part);
         barrier.wait();
