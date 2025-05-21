@@ -537,4 +537,36 @@ bool                            Params::g_verify_enabled = false;
 
 std::map<std::string, std::map<uint32_t, std::string>> Params::global_params;
 
+int Params::getParamMemUsage() {
+//    std::map<uint32_t, std::string>               my_data;
+//    std::vector<std::map<uint32_t, std::string>*> data;
+//    std::vector<KeySet_t>                         allowedKeys;
+
+//std::cout << "___________________________" << std::endl;
+  int numBytes__my_data     = my_data.size() * (sizeof(uint32_t) + sizeof(std::string));
+  int numBytes__data        = 0;
+  numBytes__data += data.capacity() * sizeof(std::vector<std::map<uint32_t, std::string>*>);
+  for (auto &val : data) {
+    numBytes__data += val->size() * (sizeof(uint32_t) + sizeof(std::string));
+  }
+  int numBytes__allowedKeys = allowedKeys.capacity() * sizeof(KeySet_t);
+
+/*  for (auto &kv : my_data) {
+    std::cout << " - " << kv.first << ": " << kv.second.capacity() << std::endl;
+  }
+
+  std::cout << std::endl;
+  std::cout << "my_data.size           "  << my_data.size() << std::endl;
+  std::cout << "data.size              "  << data.size() << std::endl;
+  std::cout << "allowedKeys.size       "  << allowedKeys.size() << std::endl;
+  std::cout << "data.capacity          "  << data.capacity() << std::endl;
+  std::cout << "allowedKeys.capacity   "  << allowedKeys.capacity() << std::endl;
+  std::cout << "numBytes__my_data:     "  << numBytes__my_data     << std::endl;
+  std::cout << "numBytes__data:        "  << numBytes__data        << std::endl;
+  std::cout << "numBytes__allowedKeys: "  << numBytes__allowedKeys << std::endl;
+std::cout << "___________________________" << std::endl;*/
+
+  return numBytes__my_data + numBytes__data + numBytes__allowedKeys;
+}
+
 } // namespace SST

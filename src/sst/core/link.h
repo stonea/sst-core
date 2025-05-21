@@ -48,7 +48,7 @@ class SST::Core::Serialization::serialize_impl<Link*>
 
 
 /** Link between two components. Carries events */
-class alignas(64) Link
+class /*alignas(64)*/ Link  // ***AIS*** The use of alignas is killing our memory efficiency
 {
     enum Type_t : uint16_t { POLL, HANDLER, SYNC, UNINITIALIZED };
     enum Mode_t : uint16_t { INIT, RUN, COMPLETE };
@@ -251,6 +251,8 @@ private:
     Type_t     type;
     Mode_t     mode;
     LinkId_t   tag;
+
+    void reportFields();
 
     /** Create a new link with a given tag
 

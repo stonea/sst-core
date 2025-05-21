@@ -668,35 +668,87 @@ void ConfigGraph::printConfigGraphMemUsage() const {
     int totalBytes_name = 0;
     int totalBytes_type = 0;
     int totalBytes_links = 0;
-    //int totalBytes_params = 0;
+    int totalBytes_params = 0;
     int totalBytes_coords = 0;
     int numComps = 0;
 
-    for ( ConfigComponentMap_t::const_iterator iter = comps.begin(); iter != comps.end(); ++iter ) {
-        ConfigComponent* ccomp = *iter;
-
+    for ( ConfigComponent *ccomp : comps ) {
         totalBytes_name   += ccomp->name.capacity();
         totalBytes_type   += ccomp->type.capacity();
-        totalBytes_links  += (ccomp->links.capacity()  * sizeof(LinkId_t));
-        totalBytes_coords += (ccomp->coords.capacity() * sizeof(double));
-        numComps += 1;
+        totalBytes_links  += ccomp->links.capacity()  * sizeof(LinkId_t);
+        totalBytes_params += ccomp->params.getParamMemUsage();
+        totalBytes_coords += ccomp->coords.capacity() * sizeof(double); numComps += 1;
+        
+        // todo assert enabledStatNames empty
+        // todo assert sub-components empty
+        // todo assert stats-map is empty
     }
 
-    // todo assert enabledStatNames empty
-    // todo assert sub-components empty
-    // todo assert stats-map is empty
+    int totalBytes_linkName = 0;
+    int totalBytes_linkPorts = 0;
+    int totalBytes_linkLatencyStrs = 0;
+    int numLinks = 0;
 
-    auto avg = [&](int val) { return (double)val / numComps; };
+    for ( ConfigLink *link : links) {
+      totalBytes_linkName += link->name.capacity();
+      totalBytes_linkPorts += link->port[0].capacity() + link->port[1].capacity();
+      totalBytes_linkLatencyStrs += link->latency_str[0].capacity() + link->latency_str[1].capacity();
+      numLinks += 1;
+    } 
+
+    auto avgPerComp = [&](int val) { return (double)val / numComps; };
+    auto avgPerLink = [&](int val) { return (double)val / numLinks; };
+
+    int totalBytes_configGraph_linksMap = links.size() * (sizeof(LinkId_t) + sizeof(ConfigLink*));
+    int totalBytes_configGraph_compsMap = comps.size() * (sizeof(ConfigComponent*));
+    int totalBytes_configGraph_compsByNameMapKeys = 0;
+    for(auto &kv : compsByName) {
+      totalBytes_configGraph_compsByNameMapKeys += kv.first.capacity();
+    }
+
+    std::cout << "CONFIG GRAPH:" << std::endl;
+    std::cout << "=====================" << std::endl;
+    std::cout << "sizeof(ConfigGraph): " << sizeof(ConfigGraph) << std::endl;
+    std::cout << "Data spent on linksMap:       " << totalBytes_configGraph_linksMap       << " avg=" << avgPerLink(totalBytes_configGraph_linksMap) << std::endl;
+    std::cout << "Data spent on compsMap:       " << totalBytes_configGraph_compsMap       << " avg=" << avgPerComp(totalBytes_configGraph_compsMap) << std::endl;
+    std::cout << "Data spent on compsByNameMap Keys: " << totalBytes_configGraph_compsByNameMapKeys << " avg=" << avgPerComp(totalBytes_configGraph_compsByNameMapKeys) << std::endl;
+    std::cout << std::endl;
+
+    // typedef SparseVectorMap<LinkId_t, ConfigLink*> ConfigLinkMap_t;
+    // typedef SparseVectorMap<ComponentId_t, ConfigComponent*> ConfigComponentMap_t;
+    // typedef std::map<std::string, ComponentId_t>             ConfigComponentNameMap_t;
+
+    //ConfigLinkMap_t                        links;       // SparseVectorMap
+    //ConfigComponentMap_t                   comps;       // SparseVectorMap
+    //ConfigComponentNameMap_t               compsByName; // std::map
+    //std::map<std::string, ConfigStatGroup> statGroups;
+    //std::map<std::string, LinkId_t> link_names;
+    //std::vector<ConfigStatOutput> statOutputs; // [0] is default
 
     std::cout << std::endl;
-    std::cout << "IN CONFIG COMPONENTS:" << std::endl;
+    std::cout << "CONFIG COMPONENT:" << std::endl;
     std::cout << "=====================" << std::endl;
-    std::cout << "NUM COMPONENTS = " << numComps << std::endl;
+    std::cout << "NUM CONFIG COMPONENTS = " << numComps << std::endl;
+    std::cout << "NUM CONFIG COMPONENTS (CAPACITY) = " << comps.capacity() << std::endl;
     std::cout << "sizeof(ConfigComponent) = " << sizeof(ConfigComponent) << std::endl;
-    std::cout << "Data spent on name:   " << totalBytes_name   << " avg=" << avg(totalBytes_name   ) << std::endl;
-    std::cout << "Data spent on type:   " << totalBytes_type   << " avg=" << avg(totalBytes_type   ) << std::endl;
-    std::cout << "Data spent on links:  " << totalBytes_links  << " avg=" << avg(totalBytes_links  ) << std::endl;
-    std::cout << "Data spent on coords: " << totalBytes_coords << " avg=" << avg(totalBytes_coords ) << std::endl;
+    std::cout << "Data spent on name:   " << totalBytes_name   << " avg=" << avgPerComp(totalBytes_name   ) << std::endl;
+    std::cout << "Data spent on type:   " << totalBytes_type   << " avg=" << avgPerComp(totalBytes_type   ) << std::endl;
+    std::cout << "Data spent on links:  " << totalBytes_links  << " avg=" << avgPerComp(totalBytes_links  ) << std::endl;
+    std::cout << "Data spent on params: " << totalBytes_params << " avg=" << avgPerComp(totalBytes_params ) << std::endl;
+    std::cout << "Data spent on coords: " << totalBytes_coords << " avg=" << avgPerComp(totalBytes_coords ) << std::endl;
+    std::cout << std::endl;
+
+
+
+    std::cout << std::endl;
+    std::cout << "CONFIG LINK:" << std::endl;
+    std::cout << "=====================" << std::endl;
+    std::cout << "NUM CONFIG LINKS = " << links.size() << std::endl;
+    std::cout << "NUM CONFIG LINKS (CAPACITY) = " << links.capacity() << std::endl;
+    std::cout << "sizeof(ConfigLink) = " << sizeof(ConfigLink) << std::endl;
+    std::cout << "Data spent on link names:   " << totalBytes_linkName        << " avg=" << avgPerLink(totalBytes_linkName) << std::endl;
+    std::cout << "Data spent on link ports:   " << totalBytes_linkPorts       << " avg=" << avgPerLink(totalBytes_linkPorts) << std::endl;
+    std::cout << "Data spent on latency strs: " << totalBytes_linkLatencyStrs << " avg=" << avgPerLink(totalBytes_linkLatencyStrs) << std::endl;
 }
 
 size_t
@@ -1430,5 +1482,81 @@ PartitionComponent::print(std::ostream& os, const PartitionGraph* graph) const
         graph->getLink(*it).print(os);
     }
 }
+
+void ConfigComponent::reportFields() {
+  static bool hasReported = true; // *AIS* Turn off
+
+  if(!hasReported) {
+    hasReported = true;
+
+    std::cout << "id: " << sizeof(id) << std::endl;
+    std::cout << "graph: " << sizeof(graph) << std::endl;
+    std::cout << "name: " << sizeof(name) << std::endl;
+    std::cout << "slot_num: " << sizeof(slot_num) << std::endl;
+    std::cout << "type: " << sizeof(type) << std::endl;
+    std::cout << "weight: " << sizeof(weight) << std::endl;
+    std::cout << "rank: " << sizeof(rank) << std::endl;
+    std::cout << "links: " << sizeof(links) << std::endl;
+    std::cout << "params: " << sizeof(params) << std::endl;
+    std::cout << "statLoadLevel: " << sizeof(statLoadLevel) << std::endl;
+    std::cout << "enabledStatNames: " << sizeof(enabledStatNames) << std::endl;
+    std::cout << "enabledAllStats: " << sizeof(enabledAllStats) << std::endl;
+    std::cout << "allStatConfig: " << sizeof(allStatConfig) << std::endl;
+    std::cout << "subComponents: " << sizeof(subComponents) << std::endl;
+    std::cout << "coords: " << sizeof(coords) << std::endl;
+    std::cout << "nextSubID: " << sizeof(nextSubID) << std::endl;
+    std::cout << "nextStatID: " << sizeof(nextStatID) << std::endl;
+    std::cout << "visited: " << sizeof(visited) << std::endl;
+    std::cout << "statistics: " << sizeof(statistics) << std::endl;
+  }
+}
+
+ConfigComponent::ConfigComponent() :
+  id(null_id),
+  statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
+  enabledAllStats(false),
+  nextSubID(1),
+  visited(false)
+{
+  reportFields();
+}
+
+ConfigComponent::ConfigComponent(
+    ComponentId_t id, ConfigGraph* graph, const std::string& name, const std::string& type, float weight,
+    RankInfo rank) :
+    id(id),
+    graph(graph),
+    name(name),
+    type(type),
+    weight(weight),
+    rank(rank),
+    statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
+    enabledAllStats(false),
+    nextSubID(1),
+    nextStatID(1)
+{
+    reportFields();
+    coords.resize(3, 0.0);
+}
+
+ConfigComponent::ConfigComponent(
+    ComponentId_t id, ConfigGraph* graph, uint16_t parent_subid, const std::string& name, int slot_num,
+    const std::string& type, float weight, RankInfo rank) :
+    id(id),
+    graph(graph),
+    name(name),
+    slot_num(slot_num),
+    type(type),
+    weight(weight),
+    rank(rank),
+    statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
+    enabledAllStats(false),
+    nextSubID(parent_subid),
+    nextStatID(parent_subid)
+{
+    reportFields();
+    coords.resize(3, 0.0);
+}
+
 
 } // namespace SST

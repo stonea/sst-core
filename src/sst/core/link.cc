@@ -483,6 +483,25 @@ private:
     std::vector<std::pair<SST::Profile::EventHandlerProfileTool*, uintptr_t>> tools;
 };
 
+void Link::reportFields() {
+  static bool reportedOnFields = true; // *AIS* Turn off
+  if(!reportedOnFields) {
+    reportedOnFields = true;
+
+    std::cout << "send_queue: " << sizeof(send_queue) << std::endl;
+    std::cout << "delivery_info: " << sizeof(delivery_info) << std::endl;
+    std::cout << "defaultTimeBase: " << sizeof(defaultTimeBase) << std::endl;
+    std::cout << "latency: " << sizeof(latency) << std::endl;
+    std::cout << "pair_link: " << sizeof(pair_link) << std::endl;
+    std::cout << "current_time: " << sizeof(current_time) << std::endl;
+    std::cout << "type: " << sizeof(type) << std::endl;
+    std::cout << "mode: " << sizeof(mode) << std::endl;
+    std::cout << "tag: " << sizeof(tag) << std::endl;
+    std::cout << "profile_tools: " << sizeof(profile_tools) << std::endl;
+  }
+
+}
+
 Link::Link(LinkId_t tag) :
     send_queue(nullptr),
     delivery_info(0),
@@ -494,7 +513,9 @@ Link::Link(LinkId_t tag) :
     mode(INIT),
     tag(tag),
     profile_tools(nullptr)
-{}
+{
+  reportFields();
+}
 
 Link::Link() :
     send_queue(nullptr),
@@ -507,7 +528,9 @@ Link::Link() :
     mode(INIT),
     tag(-1),
     profile_tools(nullptr)
-{}
+{
+  reportFields();
+}
 
 Link::~Link()
 {

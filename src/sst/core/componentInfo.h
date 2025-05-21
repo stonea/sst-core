@@ -44,6 +44,8 @@ class SerializeBaseComponentHelper;
 class ComponentInfo
 {
 
+  friend void printComponentInfoMapMemoryUsage(const ComponentInfoMap &ciMap);
+
 public:
     typedef std::vector<ConfigStatistic> statEnableList_t; /*!< List of Enabled Statistics */
 
@@ -165,6 +167,8 @@ private:
     ComponentId_t addAnonymousSubComponent(
         ComponentInfo* parent_info, const std::string& type, const std::string& slot_name, int slot_num,
         uint64_t share_flags);
+
+  void reportSizes();
 
 public:
     /**
@@ -321,8 +325,10 @@ public:
         dataByID.clear();
     }
 
-    size_t size() { return dataByID.size(); }
+    size_t size() const { return dataByID.size(); }
 };
+
+void printComponentInfoMapMemoryUsage(const ComponentInfoMap &ciMap);
 
 } // namespace SST
 

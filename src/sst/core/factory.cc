@@ -23,6 +23,8 @@
 #include "sst/core/subcomponent.h"
 #include "sst/core/warnmacros.h"
 
+#include "sst/core/memuse.h"
+
 #include <fstream>
 #include <set>
 #include <stdio.h>

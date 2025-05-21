@@ -38,7 +38,9 @@ ComponentInfo::ComponentInfo(ComponentId_t id, const std::string& name) :
     slot_name(""),
     slot_num(-1),
     share_flags(0)
-{}
+{
+  reportSizes();
+}
 
 ComponentInfo::ComponentInfo() :
     id(-1),
@@ -58,7 +60,9 @@ ComponentInfo::ComponentInfo() :
     slot_name(""),
     slot_num(-1),
     share_flags(0)
-{}
+{
+  reportSizes();
+}
 
 // ComponentInfo::ComponentInfo(ComponentId_t id, ComponentInfo* parent_info, const std::string& type, const Params
 // *params, const ComponentInfo *parent) :
@@ -101,6 +105,7 @@ ComponentInfo::ComponentInfo(
     share_flags(share_flags)
 {
     /*params.insert(params_in.getParams());*/
+  reportSizes();
 }
 
 ComponentInfo::ComponentInfo(
@@ -124,6 +129,7 @@ ComponentInfo::ComponentInfo(
     slot_num(ccomp->slot_num),
     share_flags(0)
 {
+  reportSizes();
     // See how many subcomponents are in each slot so we know how to name them
     std::map<std::string, int> counts;
     for ( auto sc : ccomp->subComponents ) {
@@ -424,6 +430,97 @@ ComponentInfo::test_printComponentInfoHierarchy(int indent)
 
     for ( auto& x : subComponents ) {
         x.second.test_printComponentInfoHierarchy(indent + 1);
+    }
+}
+
+void printComponentInfoMapMemoryUsage(const ComponentInfoMap &ciMap) {
+//    Params* params;
+//    std::map<StatisticId_t, ConfigStatistic>* statConfigs;
+//    std::map<std::string, StatisticId_t>*     enabledStatNames;
+//    std::vector<double> coordinates;
+
+    std::set<Link*> allLinks;
+
+    int totalBytes_name = 0;
+    int totalBytes_type = 0;
+    int totalBytes_linkMap = 0;
+    int totalBytes_linkMapType = 0;
+    int totalBytes_params = 0;
+    int totalBytes_coordinates = 0;
+    for (auto& cinfo : ciMap) {
+        totalBytes_name += cinfo->name.capacity();
+        totalBytes_type += cinfo->type.capacity();
+        totalBytes_coordinates += cinfo->coordinates.capacity() * sizeof(double);
+        totalBytes_linkMapType += sizeof(LinkMap);
+
+        for(auto& lmIter : cinfo->getLinkMap()->getLinkMap()) {
+            totalBytes_linkMap += lmIter.first.capacity();
+            totalBytes_linkMap += sizeof(Link*);
+
+            allLinks.insert(lmIter.second);
+        }
+    }
+
+    auto avg = [&](int val) { return val / ciMap.size(); };
+
+    std::cout << "COMPONENT INFO:" << std::endl;
+    std::cout << "=====================" << std::endl;
+    std::cout << "NUM COMPONENTS = " << ciMap.size() << std::endl;
+    std::cout << "sizeof(ComponentInfo): " << sizeof(ComponentInfo) << std::endl;
+    std::cout << "Data spent on names:         " << totalBytes_name        << " avg= " << avg(totalBytes_name) << std::endl;
+    std::cout << "Data spent on types:         " << totalBytes_type        << " avg= " << avg(totalBytes_type) << std::endl;
+    std::cout << "Data spent on link map type: " << totalBytes_linkMapType << " avg= " << avg(totalBytes_linkMapType) << std::endl;
+    std::cout << "Data spent on link map:      " << totalBytes_linkMap     << " avg= " << avg(totalBytes_linkMap) << std::endl;
+    std::cout << "Data spent on param:         " << totalBytes_params      << " avg= " << avg(totalBytes_params) << std::endl;
+    std::cout << "Data spent on coordinates:   " << totalBytes_coordinates << " avg= " << avg(totalBytes_coordinates) << std::endl;
+
+    std::cout << std::endl;
+
+    std::cout << "LINKS:" << std::endl;
+    std::cout << "=====================" << std::endl;
+    std::cout << "NUM LINKS = " << allLinks.size() << std::endl;
+    std::cout << "sizeof(Link): " << sizeof(Link) << std::endl;
+
+
+
+    for (auto& link : allLinks) {
+    }
+}
+
+void ComponentInfo::reportSizes() {
+    static bool reportedBefore = true; // *AIS* Turned off
+
+    if(!reportedBefore) {
+      reportedBefore = true;
+
+      std::cout << "id               " << sizeof(id) << std::endl;
+      std::cout << "parent_info      " << sizeof(parent_info) << std::endl;
+      std::cout << "name             " << sizeof(name) << std::endl;
+      std::cout << "type             " << sizeof(type) << std::endl;
+      std::cout << "link_map         " << sizeof(link_map) << std::endl;
+      std::cout << "component        " << sizeof(component) << std::endl;
+      std::cout << "subComponents    " << sizeof(subComponents) << std::endl;
+      std::cout << "params           " << sizeof(params) << std::endl;
+      std::cout << "defaultTimeBase  " << sizeof(defaultTimeBase) << std::endl;
+      std::cout << "statConfigs      " << sizeof(statConfigs) << std::endl;
+      std::cout << "enabledStatNames " << sizeof(enabledStatNames) << std::endl;
+      std::cout << "enabledAllStats  " << sizeof(enabledAllStats) << std::endl;
+      std::cout << "allStatConfig    " << sizeof(allStatConfig) << std::endl;
+      std::cout << "statLoadLevel    " << sizeof(statLoadLevel) << std::endl;
+      std::cout << "coordinates      " << sizeof(coordinates) << std::endl;
+      std::cout << "subIDIndex       " << sizeof(subIDIndex) << std::endl;
+      std::cout << "string           " << sizeof(slot_name) << std::endl;
+      std::cout << "slot_num         " << sizeof(slot_num) << std::endl;
+      std::cout << "share_flags      " << sizeof(share_flags) << std::endl;
+
+      int totalSize = 
+        sizeof(id) + sizeof(parent_info) + sizeof(name) + sizeof(type) + sizeof(link_map) + sizeof(component) + 
+        sizeof(subComponents) + sizeof(params) + sizeof(defaultTimeBase) + sizeof(statConfigs) + sizeof(enabledStatNames) + 
+        sizeof(enabledAllStats) + sizeof(allStatConfig) + sizeof(statLoadLevel) + sizeof(coordinates) + sizeof(subIDIndex) + 
+        sizeof(slot_name) + sizeof(slot_num) + sizeof(share_flags);
+
+      std::cout << "FIELDWISE SIZE: " << totalSize << std::endl;
+      std::cout << "THIS SIZE: " << sizeof(*this) << std::endl;
     }
 }
 

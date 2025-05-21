@@ -61,7 +61,6 @@ class SerializeBaseComponentHelper;
  */
 class BaseComponent : public SST::Core::Serialization::serializable_base
 {
-
     friend class Component;
     friend class ComponentExtension;
     friend class ComponentInfo;
@@ -917,6 +916,8 @@ private:
         }
         return base_info->component;
     }
+    
+    void reportMemSize() const;
 };
 
 /**

@@ -34,7 +34,9 @@
 
 namespace SST {
 
-BaseComponent::BaseComponent() : SST::Core::Serialization::serializable_base() {}
+BaseComponent::BaseComponent() : SST::Core::Serialization::serializable_base() {
+  reportMemSize();
+}
 
 BaseComponent::BaseComponent(ComponentId_t id) :
     SST::Core::Serialization::serializable_base(),
@@ -42,6 +44,7 @@ BaseComponent::BaseComponent(ComponentId_t id) :
     sim_(Simulation_impl::getSimulation()),
     isExtension(false)
 {
+  reportMemSize();
     if ( my_info->component == nullptr ) {
         // If it's already set, then this is a ComponentExtension and
         // we shouldn't reset it.
@@ -868,6 +871,22 @@ BaseComponent::serialize_order(SST::Core::Serialization::serializer& ser)
         break;
     }
 }
+
+void BaseComponent::reportMemSize() const {
+    static bool reportedMemSize = true; // *AIS* Turn off
+    if(!reportedMemSize) {
+      reportedMemSize = true;
+ 
+      std::cout << "my_info: " << sizeof(my_info) << std::endl;
+      std::cout << "sim_: " << sizeof(sim_) << std::endl;
+      std::cout << "isExtension: " << sizeof(isExtension) << std::endl;
+      std::cout << "clock_handlers: " << sizeof(clock_handlers) << std::endl;
+      std::cout << "m_explicitlyEnabledSharedStats: " << sizeof(m_explicitlyEnabledSharedStats) << std::endl;
+      std::cout << "m_explicitlyEnabledUniqueStats: " << sizeof(m_explicitlyEnabledUniqueStats) << std::endl;
+      std::cout << "m_enabledAllStats: " << sizeof(m_enabledAllStats) << std::endl;
+    }
+}
+
 
 namespace Core {
 namespace Serialization {

@@ -263,7 +263,7 @@ public:
 
        @return number of items
      */
-    size_t size() { return data.size(); }
+    size_t size() const { return data.size(); }
 };
 
 
@@ -520,7 +520,7 @@ public:
 
        @return number of items
      */
-    size_t size() { return data.size(); }
+    size_t size() const { return data.size(); }
 
 
     /**
@@ -565,6 +565,8 @@ public:
         data.resize(write_ptr);
         data.shrink_to_fit();
     }
+
+    size_t capacity() const { return data.capacity(); }
 };
 
 /**
@@ -796,6 +798,8 @@ public:
        @return number of items
      */
     size_t size() { return data.size(); }
+
+    size_t capacity() const { return data.capacity(); }
 };
 
 } // namespace SST

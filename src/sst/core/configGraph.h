@@ -253,13 +253,7 @@ public:
     void             setConfigGraphPointer(ConfigGraph* graph_ptr);
 
     ~ConfigComponent() {}
-    ConfigComponent() :
-        id(null_id),
-        statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
-        enabledAllStats(false),
-        nextSubID(1),
-        visited(false)
-    {}
+    ConfigComponent();
 
     StatisticId_t getNextStatisticID();
 
@@ -335,38 +329,13 @@ private:
     /** Create a new Component */
     ConfigComponent(
         ComponentId_t id, ConfigGraph* graph, const std::string& name, const std::string& type, float weight,
-        RankInfo rank) :
-        id(id),
-        graph(graph),
-        name(name),
-        type(type),
-        weight(weight),
-        rank(rank),
-        statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
-        enabledAllStats(false),
-        nextSubID(1),
-        nextStatID(1)
-    {
-        coords.resize(3, 0.0);
-    }
+        RankInfo rank);
 
     ConfigComponent(
         ComponentId_t id, ConfigGraph* graph, uint16_t parent_subid, const std::string& name, int slot_num,
-        const std::string& type, float weight, RankInfo rank) :
-        id(id),
-        graph(graph),
-        name(name),
-        slot_num(slot_num),
-        type(type),
-        weight(weight),
-        rank(rank),
-        statLoadLevel(STATISTICLOADLEVELUNINITIALIZED),
-        enabledAllStats(false),
-        nextSubID(parent_subid),
-        nextStatID(parent_subid)
-    {
-        coords.resize(3, 0.0);
-    }
+        const std::string& type, float weight, RankInfo rank);
+
+    void reportFields();
 };
 
 /** Map names to Links */

@@ -12,6 +12,7 @@
 #include "sst_config.h"
 
 #include "sst/core/warnmacros.h"
+#include "componentInfo.h"
 
 DISABLE_WARN_DEPRECATED_REGISTER
 // The Python header already defines this and should override one from the
@@ -329,11 +330,18 @@ start_graph_creation(
 
     double start_graph_gen = sst_get_cpu_time();
 
+    uint64_t graphConstructionRaise;
+
     // Only rank 0 will populate the graph, unless we are using
     // parallel load.  In this case, all ranks will load the graph
     if ( myRank.rank == 0 || cfg.parallel_load() ) {
         try {
+            const uint64_t memMark1 = maxGlobalMemSize();
+
             graph = modelGen->createConfigGraph();
+
+            const uint64_t memMark2 = maxGlobalMemSize();
+            graphConstructionRaise = (memMark2 - memMark1);
         }
         catch ( std::exception& e ) {
             g_output.fatal(CALL_INFO, -1, "Error encountered during config-graph generation: %s\n", e.what());
@@ -345,6 +353,11 @@ start_graph_creation(
 
 
     force_rank_sequential_stop(cfg.rank_seq_startup(), myRank, world_size);
+
+    std::cout << "NUMER OF COMPONETS: " << graph->getNumComponents() << std::endl;
+    std::cout << "NUMBER OF LINKS:    " << graph->getLinkMap().size() << std::endl;
+    std::cout << std::endl;
+    std::cout << ">>>### In C++ graph construction raised RSS by " << graphConstructionRaise << " KB" << std::endl;
 
 #ifdef SST_CONFIG_HAVE_MPI
     // Config is done - broadcast it, unless we are parallel loading
@@ -495,6 +508,9 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
         do_statengine_initialization(info.graph, sim, info.myRank);
         barrier.wait();
 
+        //info.graph->printConfigGraphMemUsage(); // ***AIS***
+
+        const uint64_t memMarkA = maxGlobalMemSize();
         // Prepare the links, which creates the ComponentInfo objects and
         // Link and puts the links in the LinkMap for each ComponentInfo.
 #ifdef SST_COMPILE_MACOSX
@@ -513,14 +529,25 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
 #else
         do_link_preparation(info.graph, sim, info.myRank, info.min_part);
 #endif
+        const uint64_t memMarkB = maxGlobalMemSize();
+
+        std::cout << std::endl;
+        std::cout << ">>>### In C++ link preparation raised RSS by " << (memMarkB - memMarkA) << " KB" << std::endl;
+        std::cout << std::endl;
+        //SST::printComponentInfoMapMemoryUsage(sim->getComponentInfoMap()); *AIS*
+
         barrier.wait();
 
-        info.graph->printConfigGraphMemUsage(); // ***AIS***
-
+        const uint64_t memMarkC = maxGlobalMemSize();
         // Create all the simulation components
         do_graph_wireup(info.graph, sim, info.myRank, info.min_part);
+        const uint64_t memMarkD = maxGlobalMemSize();
         barrier.wait();
 
+        std::cout << std::endl;
+        std::cout << ">>>### In C++ wireup raised RSS by " << (memMarkD - memMarkC) << " KB" << std::endl;
+        std::cout << std::endl;
+ 
         if ( tid == 0 ) { delete info.graph; }
 
         force_rank_sequential_stop(info.config->rank_seq_startup(), info.myRank, info.world_size);
@@ -934,6 +961,7 @@ main(int argc, char* argv[])
             g_output.verbose(CALL_INFO, 1, 0, "# Graph construction took %f seconds.\n", graph_gen_time);
             g_output.verbose(CALL_INFO, 1, 0, "# Graph contains %" PRIu64 " components\n", comp_count);
         }
+
 
         ////// End ConfigGraph Creation //////
 

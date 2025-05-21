@@ -232,6 +232,8 @@ public:
     typedef std::string                    key_type; /*!< Type of key (string) */
     typedef std::set<key_type, KeyCompare> KeySet_t; /*!< Type of a set of keys */
 
+    int getParamMemUsage();
+
     /**
      * Enable or disable parameter verification on an instance
      * of Params.  Useful when generating a new set of Params to
@@ -958,6 +960,8 @@ private:
     static uint32_t                        nextKeyID;
 
     static std::map<std::string, std::map<uint32_t, std::string>> global_params;
+
+    int getParamsMemUsage() const;
 };
 
 #if 0
