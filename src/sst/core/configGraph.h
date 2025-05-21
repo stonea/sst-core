@@ -120,6 +120,40 @@ private:
     }
 
     void updateLatencies(TimeLord*);
+
+  public:
+    static int computePaddingSize() {
+        /* 
+            ('id'          , sizeof_linkId_t),
+            ('name'        , sizeof_string),
+            ('component'   , 2*sizeof_componentId_t),
+            ('port'        , 2*sizeof_string),
+            ('latency'     , 2*sizeof_simTime_t),
+            ('latency_str' , 2*sizeof_string),
+            ('order'       , sizeof_linkId_t),
+            ('no_cut'      , sizeof_bool),
+            ('(vtable)'    , sizeof_ptr)]
+        */
+        int sizeof_linkId_t      = sizeof(LinkId_t);
+        int sizeof_string        = sizeof(std::string);
+        int sizeof_componentId_t = sizeof(ComponentId_t);
+        int sizeof_simTime_t     = sizeof(SimTime_t);
+        int sizeof_bool          = sizeof(bool);
+        int sizeof_ptr           = sizeof(void*);
+
+        int expectedSize = 
+            sizeof_linkId_t +
+            sizeof_string +
+            2*sizeof_componentId_t +
+            2*sizeof_string +
+            2*sizeof_simTime_t +
+            2*sizeof_string +
+            sizeof_linkId_t +
+            sizeof_bool +
+            sizeof_ptr;
+
+        return sizeof(ConfigLink) - expectedSize;
+    }
 };
 
 class ConfigStatistic : public SST::Core::Serialization::serializable
@@ -153,6 +187,25 @@ public:
     ImplementSerializable(ConfigStatistic)
 
     static constexpr StatisticId_t stat_null_id = std::numeric_limits<StatisticId_t>::max();
+
+  public:
+    static int computePaddingSize() {
+        /* 
+          fields_configStatistic = [
+            ('id'     , sizeof_statisticId_t),
+            ('params' , sizeof_params),
+            ('shared' , sizeof_bool),
+            ('name'   , sizeof_string)]
+        */
+
+        int sizeof_statisticId_t = sizeof(StatisticId_t);
+        int sizeof_params = sizeof(Params);
+        int sizeof_bool   = sizeof(bool);
+        int sizeof_string = sizeof(std::string);
+        
+        int expectedSize = sizeof_statisticId_t + sizeof_params + sizeof_bool + sizeof_string;
+        return sizeof(ConfigStatistic) - expectedSize;
+    }
 };
 
 class ConfigStatGroup : public SST::Core::Serialization::serializable
@@ -336,6 +389,63 @@ private:
         const std::string& type, float weight, RankInfo rank);
 
     void reportFields();
+
+  public:
+    static int computePaddingSize() {
+        /* 
+          fields_configComponent = [
+            ('id'               , sizeof_componentId_t),
+            ('graph'            , sizeof_ptr),
+            ('name'             , sizeof_string),
+            ('slot_num'         , sizeof_int),
+            ('type'             , sizeof_string),
+            ('weight'           , sizeof_float),
+            ('rank'             , sizeof_rankInfo),
+            ('links'            , sizeof_vector),
+            ('params'           , sizeof_params),
+            ('statLoadLevel'    , sizeof_uint8),
+            ('enabledStatNames' , sizeof_map),
+            ('enabledAllStats'  , sizeof_bool),
+            ('allStatConfig'    , sizeof_configStatistic),
+            ('subComponents'    , sizeof_vector),
+            ('coords'           , sizeof_vector),
+            ('nextSubID'        , sizeof_uint16),
+            ('nextStatID'       , sizeof_uint16),
+            ('visited'          , sizeof_bool),
+            ('statistics'       , sizeof_map),
+            ('(vtable)'         , sizeof_ptr)]
+        */
+
+        int sizeof_componentId_t = sizeof(ComponentId_t);
+        int sizeof_ptr      = sizeof(void*);
+        int sizeof_string   = sizeof(std::string);
+        int sizeof_int      = sizeof(int);
+        int sizeof_float    = sizeof(float);
+        int sizeof_rankInfo = sizeof(RankInfo);
+        int sizeof_vector   = sizeof(std::vector<int>);
+        int sizeof_params   = sizeof(Params);
+        int sizeof_map      = sizeof(std::map<int,int>);
+        int sizeof_uint16   = sizeof(uint16_t);
+        int sizeof_uint8    = sizeof(uint8_t);
+        int sizeof_bool     = sizeof(bool);
+        int sizeof_configStatistic = sizeof(ConfigStatistic);
+
+        int expectedSize = 
+            2*sizeof_bool +
+            sizeof_componentId_t +
+            sizeof_configStatistic +
+            sizeof_float +
+            sizeof_int +
+            2*sizeof_map +
+            sizeof_params +
+            2*sizeof_ptr +
+            sizeof_rankInfo +
+            2*sizeof_string +
+            2*sizeof_uint16 +
+            sizeof_uint8 +
+            3*sizeof_vector;
+        return sizeof(ConfigComponent) - expectedSize;
+    }
 };
 
 /** Map names to Links */

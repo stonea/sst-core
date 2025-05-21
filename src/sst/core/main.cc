@@ -768,8 +768,13 @@ main(int argc, char* argv[])
     std::cout << "sizeof_map:    " << sizeof(std::map<int, int>) << std::endl;
     std::cout << "capacity empty string: " << std::string("").capacity() << std::endl;
     std::cout << std::endl;
-    std::cout << "paddingFor_RankInfo: " << RankInfo::computePaddingSize() << std::endl;
-    std::cout << "paddingFor_Params:   " << Params::computePaddingSize() << std::endl;
+    std::cout << "paddingFor_RankInfo:        " << RankInfo::computePaddingSize()        << std::endl;
+    std::cout << "paddingFor_Params:          " << Params::computePaddingSize()          << std::endl;
+    std::cout << "paddingFor_configStatistic: " << ConfigStatistic::computePaddingSize() << std::endl;
+    std::cout << "paddingFor_configComponent: " << ConfigComponent::computePaddingSize() << std::endl;
+    std::cout << "paddingFor_configLink:      " << ConfigLink::computePaddingSize()      << std::endl;
+    std::cout << "paddingFor_componentInfo:   " << ComponentInfo::computePaddingSize()   << std::endl;
+    std::cout << "paddingFor_link:            " << Link::computePaddingSize()            << std::endl;
     std::cout << std::endl;
 
     // Check to see if we are doing a restart from a checkpoint

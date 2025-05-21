@@ -284,6 +284,53 @@ public:
     test_addSubComponentInfo(const std::string& name, const std::string& slot_name, TimeConverter* tv = nullptr);
 
     void test_printComponentInfoHierarchy(int index = 0);
+
+    static int computePaddingSize() {
+        /* 
+            ('id'               , sizeof_componentId_t),
+            ('parent_info'      , sizeof_ptr),
+            ('name'             , sizeof_string),
+            ('type'             , sizeof_string),
+            ('link_map'         , sizeof_ptr),
+            ('component'        , sizeof_ptr),
+            ('subComponents'    , sizeof_map),
+            ('params'           , sizeof_ptr),
+            ('defaultTimeBase'  , sizeof_ptr),
+            ('statConfigs'      , sizeof_ptr),
+            ('enabledStatNames' , sizeof_ptr),
+            ('enabledAllStats'  , sizeof_bool),
+            ('allStatConfig'    , sizeof_ptr),
+            ('statLoadLevel'    , sizeof_uint8),
+            ('coordinates'      , sizeof_vector),
+            ('subIDIndex'       , sizeof_uint64),
+            ('slot_name'        , sizeof_string),
+            ('slot_num'         , sizeof_int),
+            ('share_flags'      , sizeof_uint64)]
+        */
+        int sizeof_componentId_t = sizeof(ComponentId_t);
+        int sizeof_ptr    = sizeof(void*);
+        int sizeof_string = sizeof(std::string);
+        int sizeof_map    = sizeof(std::map<int,int>);
+        int sizeof_bool   = sizeof(bool);
+        int sizeof_uint8  = sizeof(uint8_t);
+        int sizeof_uint64 = sizeof(uint64_t);
+        int sizeof_int    = sizeof(int);
+        int sizeof_vector = sizeof(std::vector<int>);
+
+        int expectedSize = 
+            sizeof_bool +
+            sizeof_componentId_t +
+            sizeof_int +
+            sizeof_map +
+            8*sizeof_ptr +
+            3*sizeof_string +
+            2*sizeof_uint64 +
+            sizeof_uint8 +
+            sizeof_vector;
+
+        return sizeof(ComponentInfo) - expectedSize;
+    }
+
 };
 
 class ComponentInfoMap
@@ -326,6 +373,8 @@ public:
     }
 
     size_t size() const { return dataByID.size(); }
+
+
 };
 
 void printComponentInfoMapMemoryUsage(const ComponentInfoMap &ciMap);

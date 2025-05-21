@@ -298,6 +298,38 @@ private:
     std::string ctype;
     std::string port;
 #endif
+
+  public:
+
+    static int computePaddingSize() {
+      /* 
+          ('send_queue'      , sizeof_ptr),
+          ('delivery_info'   , sizeof_uintptr),
+          ('defaultTimeBase' , sizeof_simTime_t),
+          ('latency'         , sizeof_simTime_t),
+          ('pair_link'       , sizeof_ptr),
+          ('current_time'    , sizeof_ptr),
+          ('type'            , sizeof_uint16),
+          ('mode'            , sizeof_uint16),
+          ('tag'             , sizeof_linkId_t),
+          ('profile_tools'   , sizeof_ptr)]
+      */
+      
+      int sizeof_linkId_t  = sizeof(LinkId_t);
+      int sizeof_ptr       = sizeof(void*);
+      int sizeof_simTime_t = sizeof(SimTime_t);
+      int sizeof_uint16    = sizeof(uint16_t);
+      int sizeof_uintptr   = sizeof(uintptr_t);
+    
+      int expectedSize = 
+          sizeof_linkId_t +
+          4*sizeof_ptr +
+          2*sizeof_simTime_t +
+          2*sizeof_uint16 +
+          sizeof_uintptr;
+
+      return sizeof(Link) - expectedSize;
+    }
 };
 
 /** Self Links are links from a component to itself */
