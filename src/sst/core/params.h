@@ -962,6 +962,25 @@ private:
     static std::map<std::string, std::map<uint32_t, std::string>> global_params;
 
     int getParamsMemUsage() const;
+
+  public:
+    static int computePaddingSize() {
+        /* 
+          fields_params = [
+              ('my_data'        , sizeof_map),
+              ('data'           , sizeof_vector),
+              ('allowedKeys'    , sizeof_vector),
+              ('verify_enabled' , sizeof_bool),
+              ('(vtable)'       , sizeof_ptr)]
+        */
+        int sizeof_map = sizeof(std::map<int,int>);
+        int sizeof_vector = sizeof(std::vector<int>);
+        int sizeof_bool = sizeof(bool);
+        int sizeof_ptr = sizeof(void*);
+
+        int expectedSize = sizeof_map + 2*sizeof_vector + sizeof_bool + sizeof_ptr;
+        return sizeof(Params) - expectedSize;
+    }
 };
 
 #if 0

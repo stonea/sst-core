@@ -71,7 +71,19 @@ public:
     }
 
 private:
-    ImplementSerializable(SST::RankInfo)
+    ImplementSerializable(SST::RankInfo);
+
+public:
+    static int computePaddingSize() {
+        /* 
+          fields_rankInfo = [
+            ('rank'     , sizeof_uint32),
+            ('thread'   , sizeof_uint32),
+            ('(vtable)' , sizeof_ptr)]
+        */
+        int expectedSize = 2*sizeof(uint32_t) + sizeof(void*);
+        return sizeof(RankInfo) - expectedSize;
+    }
 };
 
 } // namespace SST
