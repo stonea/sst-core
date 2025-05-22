@@ -354,8 +354,13 @@ start_graph_creation(
 
     force_rank_sequential_stop(cfg.rank_seq_startup(), myRank, world_size);
 
-    std::cout << "NUMER OF COMPONETS: " << graph->getNumComponents() << std::endl;
-    std::cout << "NUMBER OF LINKS:    " << graph->getLinkMap().size() << std::endl;
+    std::cout << "NUMBER OF COMPONENTS " << graph->getNumComponents() << std::endl;
+    std::cout << "NUMBER OF LINKS:     " << graph->getLinkMap().size() << std::endl;
+    std::cout << "..." << std::endl;
+    std::cout << "CAPACITY OF COMPONENTS " << graph->getComponentsCapacity() << std::endl;
+    std::cout << "CAPACITY OF LINKS:     " << graph->getLinkMap().capacity() << std::endl;
+    std::cout << std::endl;
+
     std::cout << std::endl;
     std::cout << ">>>### In C++ graph construction raised RSS by " << graphConstructionRaise << " KB" << std::endl;
 

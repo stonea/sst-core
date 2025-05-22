@@ -492,6 +492,7 @@ public:
     }
 
     size_t getNumComponents() { return comps.data.size(); }
+    size_t getComponentsCapacity() const { return comps.data.capacity(); }
 
     size_t getNumComponentsInMPIRank(uint32_t rank);
 
