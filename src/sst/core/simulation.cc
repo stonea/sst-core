@@ -640,7 +640,6 @@ Simulation_impl::performWireUp(ConfigGraph& graph, const RankInfo& myRank, SimTi
             if ( !cinfo->hasLinks() ) {
                 printf("WARNING: Building component \"%s\" with no links assigned.\n", ccomp->name.c_str());
             }
-
             tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
 
             cinfo->setComponent(tmp);

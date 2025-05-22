@@ -781,6 +781,12 @@ main(int argc, char* argv[])
     std::cout << "paddingFor_componentInfo:   " << ComponentInfo::computePaddingSize()   << std::endl;
     std::cout << "paddingFor_link:            " << Link::computePaddingSize()            << std::endl;
     std::cout << std::endl;
+    std::cout << "Size of Params:           " << sizeof(Params)          << std::endl;
+    std::cout << "Size of ConfigStatistic:  " << sizeof(ConfigStatistic) << std::endl;
+    std::cout << "Size of ConfigComponent:  " << sizeof(ConfigComponent) << std::endl;
+    std::cout << "Size of ConfigLink:       " << sizeof(ConfigLink)      << std::endl;
+    std::cout << "Size of ComponentInfo:    " << sizeof(ComponentInfo)   << std::endl;
+    std::cout << "Size of Link:             " << sizeof(Link)            << std::endl;
 
     // Check to see if we are doing a restart from a checkpoint
     bool restart = cfg.load_from_checkpoint();
