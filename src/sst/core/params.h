@@ -981,6 +981,8 @@ private:
         int expectedSize = sizeof_map + 2*sizeof_vector + sizeof_bool + sizeof_ptr;
         return sizeof(Params) - expectedSize;
     }
+
+    int computeHeapData() const;
 };
 
 #if 0

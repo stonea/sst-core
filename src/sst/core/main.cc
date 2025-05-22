@@ -77,6 +77,23 @@ using namespace SST;
 static SST::Output g_output;
 
 
+
+static size_t totalAllocated = 0;
+
+void* operator new(size_t size) {
+    void* ptr = malloc(size);
+    totalAllocated += size;
+    return ptr;
+}
+
+void operator delete(void* ptr, size_t size) noexcept {
+    if (ptr) {
+        totalAllocated -= size;
+        free(ptr);
+    }
+}
+
+
 // Functions to force initialization stages of simulation to execute
 // one rank at a time.  Put force_rank_sequential_start() before the
 // serialized section and force_rank_sequential_stop() after.  These
@@ -330,18 +347,21 @@ start_graph_creation(
 
     double start_graph_gen = sst_get_cpu_time();
 
-    uint64_t graphConstructionRaise;
+    uint64_t graphConstructionRaise, graphConstructionRaiseAlloc;
 
     // Only rank 0 will populate the graph, unless we are using
     // parallel load.  In this case, all ranks will load the graph
     if ( myRank.rank == 0 || cfg.parallel_load() ) {
         try {
             const uint64_t memMark1 = maxGlobalMemSize();
+            const uint64_t allocMark1 = totalAllocated;
 
             graph = modelGen->createConfigGraph();
 
             const uint64_t memMark2 = maxGlobalMemSize();
+            const uint64_t allocMark2 = totalAllocated;
             graphConstructionRaise = (memMark2 - memMark1);
+            graphConstructionRaiseAlloc = (allocMark2 - allocMark1);
         }
         catch ( std::exception& e ) {
             g_output.fatal(CALL_INFO, -1, "Error encountered during config-graph generation: %s\n", e.what());
@@ -360,9 +380,12 @@ start_graph_creation(
     std::cout << "CAPACITY OF COMPONENTS " << graph->getComponentsCapacity() << std::endl;
     std::cout << "CAPACITY OF LINKS:     " << graph->getLinkMap().capacity() << std::endl;
     std::cout << std::endl;
-
+    std::cout << "Avg heap data per config component: " << graph->computeAvgHeapDataForConfigComponents() << std::endl;
+    std::cout << "Avg heap data per config link:      " << graph->computeAvgHeapDataForConfigLinks() << std::endl;
+    std::cout << std::endl;
     std::cout << std::endl;
     std::cout << ">>>### In C++ graph construction raised RSS by " << graphConstructionRaise << " KB" << std::endl;
+    std::cout << ">>>### In C++ graph construction mem alloc'd raised by " << (graphConstructionRaiseAlloc)/1024 << " KB" << std::endl;
 
 #ifdef SST_CONFIG_HAVE_MPI
     // Config is done - broadcast it, unless we are parallel loading
@@ -516,6 +539,7 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
         //info.graph->printConfigGraphMemUsage(); // ***AIS***
 
         const uint64_t memMarkA = maxGlobalMemSize();
+        const uint64_t allocMarkA = totalAllocated;
         // Prepare the links, which creates the ComponentInfo objects and
         // Link and puts the links in the LinkMap for each ComponentInfo.
 #ifdef SST_COMPILE_MACOSX
@@ -535,22 +559,28 @@ start_simulation(uint32_t tid, SimThreadInfo_t& info, Core::ThreadSafe::Barrier&
         do_link_preparation(info.graph, sim, info.myRank, info.min_part);
 #endif
         const uint64_t memMarkB = maxGlobalMemSize();
+        const uint64_t allocMarkB = totalAllocated;
 
         std::cout << std::endl;
         std::cout << ">>>### In C++ link preparation raised RSS by " << (memMarkB - memMarkA) << " KB" << std::endl;
+        std::cout << ">>>### In C++ link preparation mem alloc'd raised by " << (allocMarkB - allocMarkA)/1024 << " KB" << std::endl;
         std::cout << std::endl;
         //SST::printComponentInfoMapMemoryUsage(sim->getComponentInfoMap()); *AIS*
 
         barrier.wait();
 
+        const uint64_t allocMarkC = totalAllocated;
         const uint64_t memMarkC = maxGlobalMemSize();
         // Create all the simulation components
         do_graph_wireup(info.graph, sim, info.myRank, info.min_part);
         const uint64_t memMarkD = maxGlobalMemSize();
+        const uint64_t allocMarkD = totalAllocated;
         barrier.wait();
 
         std::cout << std::endl;
         std::cout << ">>>### In C++ wireup raised RSS by " << (memMarkD - memMarkC) << " KB" << std::endl;
+        std::cout << ">>>### In C++ link preparation mem alloc'd raised by " << (allocMarkD - allocMarkC) << " KB" << std::endl;
+        
         std::cout << std::endl;
  
         if ( tid == 0 ) { delete info.graph; }
@@ -781,6 +811,12 @@ main(int argc, char* argv[])
     std::cout << "paddingFor_componentInfo:   " << ComponentInfo::computePaddingSize()   << std::endl;
     std::cout << "paddingFor_link:            " << Link::computePaddingSize()            << std::endl;
     std::cout << std::endl;
+    std::cout << "Size of Params:           " << sizeof(Params)          << std::endl;
+    std::cout << "Size of ConfigStatistic:  " << sizeof(ConfigStatistic) << std::endl;
+    std::cout << "Size of ConfigComponent:  " << sizeof(ConfigComponent) << std::endl;
+    std::cout << "Size of ConfigLink:       " << sizeof(ConfigLink)      << std::endl;
+    std::cout << "Size of ComponentInfo:    " << sizeof(ComponentInfo)   << std::endl;
+    std::cout << "Size of Link:             " << sizeof(Link)            << std::endl;
 
     // Check to see if we are doing a restart from a checkpoint
     bool restart = cfg.load_from_checkpoint();

@@ -99,6 +99,11 @@ ConfigLink::updateLatencies(TimeLord* timeLord)
     // }
 }
 
+int ConfigLink::computeHeapData() const {
+    return name.capacity() + port[0].capacity() + port[1].capacity() + 
+      latency_str[0].capacity() + latency_str[1].capacity();
+}
+
 void
 ConfigStatistic::addParameter(const std::string& key, const std::string& value, bool overwrite)
 {
@@ -1466,6 +1471,22 @@ ConfigGraph::setComponentConfigGraphPointers()
     }
 }
 
+int ConfigGraph::computeAvgHeapDataForConfigComponents() const {
+    int tally = 0;
+    for ( auto* x : comps ) {
+        tally += x->computeHeapData();
+    }
+    return tally / comps.size();
+}
+
+int ConfigGraph::computeAvgHeapDataForConfigLinks() const {
+    int tally = 0;
+    for ( auto* x : links ) {
+        tally += x->computeHeapData();
+    }
+    return tally / links.size();
+}
+
 void
 PartitionComponent::print(std::ostream& os, const PartitionGraph* graph) const
 {
@@ -1556,6 +1577,12 @@ ConfigComponent::ConfigComponent(
 {
     reportFields();
     coords.resize(3, 0.0);
+}
+
+int ConfigComponent::computeHeapData() const
+{
+    return name.capacity() + type.capacity() + (links.capacity() * sizeof(uint32_t)) +
+      params.computeHeapData() + (coords.capacity() * sizeof(uint64_t));
 }
 
 

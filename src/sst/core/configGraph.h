@@ -154,6 +154,8 @@ private:
 
         return sizeof(ConfigLink) - expectedSize;
     }
+
+    int computeHeapData() const;
 };
 
 class ConfigStatistic : public SST::Core::Serialization::serializable
@@ -446,6 +448,8 @@ private:
             3*sizeof_vector;
         return sizeof(ConfigComponent) - expectedSize;
     }
+
+    int computeHeapData() const;
 };
 
 /** Map names to Links */
@@ -629,6 +633,10 @@ private:
         ConfigLink*      operator()(ConfigLink* link);
         ConfigComponent* operator()(ConfigComponent* comp);
     };
+
+  public:
+    int computeAvgHeapDataForConfigComponents() const;
+    int computeAvgHeapDataForConfigLinks() const;
 };
 
 class PartitionComponent

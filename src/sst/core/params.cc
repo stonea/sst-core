@@ -80,6 +80,7 @@ Params::operator=(const Params& old)
 void
 Params::clear()
 {
+  std::cout << "CLEAR PARAMS" << std::endl;
     my_data.clear();
     data.clear();
     data.push_back(&my_data);
@@ -567,6 +568,48 @@ int Params::getParamMemUsage() {
 std::cout << "___________________________" << std::endl;*/
 
   return numBytes__my_data + numBytes__data + numBytes__allowedKeys;
-}
+  }
+  
+  int Params::computeHeapData() const {
+      /*('my_data' , numParamsInUserComponent * (sizeof_uint32 + sizeof_string + cost_per_element_in_map)),
+      ('my_data.string' , numParamsInUserComponent * avgStringCap_paramValue),
+      ('data', 1 * sizeof_ptr),
+      ('allowedKeys', 0)]*/
+
+      int memPerMapEl = 32;
+
+      std::map<uint32_t, std::string>               my_data;
+
+      int mem_myData = my_data.size() * (sizeof(uint32_t) + sizeof(std::string) + memPerMapEl);
+
+//      std::cout << "my_data size: " << my_data.size() << std::endl;
+
+      int mem_myData_strings = 0;
+      for (auto &val : my_data) {
+          mem_myData_strings += val.second.capacity();
+      }
+      
+      int mem_data = data.capacity() * sizeof(std::map<uint32_t, std::string>*);
+      mem_data += data.capacity() * sizeof(std::map<uint32_t, std::string>);
+      for (auto &val : data) {
+          mem_data += sizeof(uint32_t) + sizeof(std::string) + memPerMapEl;
+          for (auto &kv : *val) {
+            mem_data += kv.second.capacity();
+          }
+      }
+
+      
+      int mem_allowedKeys = allowedKeys.capacity() * sizeof(KeySet_t);
+
+      /*std::cout << "----------" << std::endl;
+      std::cout << "mem_myData: " << mem_myData << std::endl;
+      std::cout << "mem_myData_strings: " << mem_myData_strings << std::endl;
+      std::cout << "mem_data: " << mem_data << std::endl;
+      std::cout << "mem_allowedKeys: " << mem_allowedKeys << std::endl;
+      std::cout << "VALUE: " << mem_myData + mem_myData_strings + mem_data + mem_allowedKeys;
+      std::cout << "----------" << std::endl;*/
+
+      return mem_myData + mem_myData_strings + mem_data + mem_allowedKeys;
+  }
 
 } // namespace SST
