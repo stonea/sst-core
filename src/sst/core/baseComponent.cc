@@ -486,6 +486,12 @@ BaseComponent::configureSelfLink(const std::string& name, Event::HandlerBase* ha
     return configureLink(name, handler);
 }
 
+Link*
+BaseComponent::getLink(const std::string &name)
+{
+  return my_info_->getLinkMap()->getLink(name);
+}
+
 UnitAlgebra
 BaseComponent::getCoreTimeBase() const
 {

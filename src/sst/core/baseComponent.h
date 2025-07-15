@@ -331,6 +331,12 @@ protected:
      */
     Link* configureSelfLink(const std::string& name, Event::HandlerBase* handler = nullptr);
 
+    /** Return a previously configured link
+     * @param name - Name of the link
+     * @return A pointer to the configured link, or nullptr if an error occured.
+     **/
+    Link* getLink(const std::string &name);
+
     /** Registers a clock for this component.
         @param freq Frequency for the clock in SI units
         @param handler Pointer to Clock::HandlerBase which is to be invoked

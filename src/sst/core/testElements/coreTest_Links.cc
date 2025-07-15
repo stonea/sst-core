@@ -41,6 +41,11 @@ coreTestLinks::coreTestLinks(ComponentId_t id, Params& params) :
     W = configureLink("Wlink", link_tb.toString(),
         new Event::Handler2<coreTestLinks, &coreTestLinks::handleEvent, std::string>(this, "West"));
 
+    // test that getLink API is consistent with what returned from configure Link
+    sst_assert(E == getLink("Elink") , CALL_INFO, -1, "getLink API returned an unexpected value");
+    sst_assert(W == getLink("Wlink") , CALL_INFO, -1, "getLink API returned an unexpected value");
+    sst_assert(nullptr == getLink("InvalidLink") , CALL_INFO, -1, "getLink API returned an unexpected value");
+
     if ( found_sendlat ) {
         E->addSendLatency(1, send_lat.toString());
         W->addSendLatency(1, send_lat.toString());
