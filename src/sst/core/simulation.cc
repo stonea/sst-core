@@ -586,10 +586,143 @@ Simulation_impl::initializeStatisticEngine(StatsConfig* stats_config)
     return 0;
 }
 
+static bool useNewCodePath = true;
+
+void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInfo& myRank) {
+  // Visit configComponents and stashes rank information for that component
+  // (based on ID).  At some point this information might be available on
+  // configLinks directly so this stashing step could be removed.
+  std::map<int, RankInfo> compIdToRank;
+  for ( ConfigComponentMap_t::const_iterator iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
+    ConfigComponent* ccomp = *iter;
+    compIdToRank.insert({ccomp->id, ccomp->rank});
+  }
+
+  std::map<LinkId_t, Link*> outstandingLinks;
+  for ( ConfigComponentMap_t::const_iterator iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
+    ConfigComponent* ccomp = *iter;
+    if ( ccomp->rank != myRank ) {
+      continue;
+    }
+
+    // create componentInfo
+    ComponentInfo* cinfo = new ComponentInfo(ccomp, ccomp->name, nullptr, new LinkMap());
+    compInfoMap.insert(cinfo);
+
+    std::set<std::string> deletedLinks;
+
+    // iterate over the component's outgoing links
+    for ( LinkId_t linkId : ccomp->links ) {
+      ConfigLink *clink = graph.links_[linkId];
+
+      //std::cout << "PROCESS " << linkId << std::endl;
+      //std::cout << "        " << clink->name << std::endl;
+      //if(deletedLinks.count(clink->name) > 0) {
+      //  std::cout << " !!!!!!!!!!! DELETED !!!!!!!!!!!! " << std::endl;
+      //}
+
+      // Note that ConfigLinks are bidirectional and it's not gauranteed that
+      // comp0/rank0 will refer to the current component we're iterating over.
+      ComponentId_t compId0 = clink->component[0];
+      ComponentId_t compId1 = clink->component[1];
+      RankInfo rank0 = compIdToRank.at(compId0);
+      RankInfo rank1 = compIdToRank.at(compId1);
+      int selfDir = (compId0 == ccomp->id) ? 0 : 1;
+      int tgtDir  = (selfDir + 1) % 2;
+      assert((selfDir == 0 && compId0 == ccomp->id) ||
+             (selfDir == 1 && compId1 == ccomp->id));
+      assert((selfDir == 0 && rank0   == myRank) ||
+             (selfDir == 1 && rank1   == rank1));
+
+      // Same rank, same thread
+      if ( rank0 == rank1 ) {
+          // Check to see if this is loopback link
+          if ( clink->component[0] == clink->component[1] && clink->port[0] == clink->port[1] ) {
+              // This is a loopback, so there is only one link
+              Link* link      = new Link(clink->order);
+              link->pair_link = link;
+              link->setLatency(clink->latency[0]);
+
+              // Add this link to the appropriate LinkMap
+              cinfo->getLinkMap()->insertLink(clink->port[0], link);
+
+              delete clink;
+          } else {
+              // check to see if we've already made the link, if so simply assign it.
+              auto outstandingLinkIter = outstandingLinks.find(clink->order);
+              if(outstandingLinkIter != outstandingLinks.end()) {
+                Link *link = outstandingLinkIter->second;
+                outstandingLinks.erase(outstandingLinkIter);
+
+                cinfo->getLinkMap()->insertLink(clink->port[selfDir], link);
+
+                //std::cout << "DELETE " << clink->name << "  " << clink->id << std::endl;
+                //deletedLinks.insert(clink->name);
+                //delete clink;
+              } else {
+                // Create a LinkPair to represent this link
+                LinkPair lp(clink->order);
+
+                lp.getLeft()->setLatency(clink->latency[0]);
+                lp.getRight()->setLatency(clink->latency[1]);
+                Link *link     = (selfDir == 0) ? lp.getLeft()  : lp.getRight();
+                Link *pairLink = (selfDir == 0) ? lp.getRight() : lp.getLeft();
+
+                // Connect the link to the component we're currently on
+                cinfo->getLinkMap()->insertLink(clink->port[selfDir], link);
+
+                // If we've previously created the target component go ahead and connect now
+                ComponentInfo *tgtCompInfo = compInfoMap.getByID(clink->component[tgtDir]);
+                if(tgtCompInfo != nullptr) {
+                  tgtCompInfo->getLinkMap()->insertLink(clink->port[tgtDir], pairLink);
+                } else {
+                  // If we have not previously created the target, add it to our stash of
+                  // outstanding links we'll attach to later.
+                  outstandingLinks.insert({clink->order, pairLink});
+                }
+              }
+          }
+      }
+      // If we are on same rank, different threads and we are doing
+      // direct_interthread links
+      else if ( (rank0.rank == rank1.rank) && direct_interthread ) {
+        assert(false); // case not handled
+      }
+      // If the components are not in the same rank, then the
+      // SyncManager will handle things
+      else {
+        assert(rank0.rank != rank1.rank);
+        assert(false);
+      }
+    }
+
+    Params::enableVerify();
+    
+    // build Component and delete componentInfo since we no longer need it
+    Component* tmp;
+    if ( !cinfo->hasLinks() ) {
+        printf("WARNING: Building component \"%s\" with no links assigned.\n", ccomp->name.c_str());
+    }
+    tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
+    cinfo->setComponent(tmp);
+    delete ccomp;
+  }
+
+  for ( ConfigLinkMap_t::const_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
+    ConfigLink* clink = *iter;
+    delete clink;
+  }
+}
+
 
 int
 Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTime_t UNUSED(min_part))
 {
+  if(useNewCodePath) {
+    convertConfigRepToSimRep(graph, myRank);
+    return 0;
+  }
+
     // First, go through all the components that are in this rank and
     // create the ComponentInfo object for it, then populate the
     // LinkMaps
@@ -749,25 +882,26 @@ Simulation_impl::performWireUp(ConfigGraph& graph, const RankInfo& myRank, SimTi
     // Params objects should now start verifying parameters
     Params::enableVerify();
 
-
     // Now, build all the components
-    for ( auto iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
-        ConfigComponent* ccomp = *iter;
+    if(!useNewCodePath) {
+      for ( auto iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
+          ConfigComponent* ccomp = *iter;
 
-        if ( ccomp->rank == myRank ) {
-            Component* tmp;
+          if ( ccomp->rank == myRank ) {
+              Component* tmp;
 
-            // Check to make sure there are any entries in the component's LinkMap
-            ComponentInfo* cinfo = compInfoMap.getByID(ccomp->id);
-            if ( !cinfo->hasLinks() ) {
-                printf("WARNING: Building component \"%s\" with no links assigned.\n", ccomp->name.c_str());
-            }
+              // Check to make sure there are any entries in the component's LinkMap
+              ComponentInfo* cinfo = compInfoMap.getByID(ccomp->id);
+              if ( !cinfo->hasLinks() ) {
+                  printf("WARNING: Building component \"%s\" with no links assigned.\n", ccomp->name.c_str());
+              }
 
-            tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
+              tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
 
-            cinfo->setComponent(tmp);
-        }
-    } // end for all vertex
+              cinfo->setComponent(tmp);
+          }
+      } // end for all vertex
+    }
     // Done with vertices, delete them;
     /*  TODO:  THREADING:  Clear only once everybody is done.
     graph.comps_.clear();
