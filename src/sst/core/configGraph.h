@@ -488,9 +488,9 @@ public:
 
     ~ConfigGraph()
     {
-        for ( auto comp : comps_ ) {
+        /*for ( auto comp : comps_ ) {
             delete comp;
-        }
+        }*/
 
         if ( stats_config_ ) delete stats_config_;
     }

@@ -219,6 +219,7 @@ public:
 
     int  initializeStatisticEngine(StatsConfig* stats_config);
     int  prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTime_t min_part);
+    void convertConfigRepToSimRep(ConfigGraph& graph, const RankInfo& myRank);
     int  performWireUp(ConfigGraph& graph, const RankInfo& myRank, SimTime_t min_part);
     void exchangeLinkInfo();
 
