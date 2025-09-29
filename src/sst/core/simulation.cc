@@ -686,7 +686,29 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
       // SyncManager will handle things
       else {
         assert(rank0.rank != rank1.rank);
-        assert(false);
+
+        // Create a LinkPair to represent this link
+        LinkPair lp(clink->order);
+
+        lp.getLeft()->setLatency(clink->latency[selfDir]);
+        lp.getRight()->setLatency(0);
+        lp.getRight()->setDefaultTimeBase(minPartToTC(1));
+
+        // Connect the link to the component we're currently on
+        cinfo->getLinkMap()->insertLink(clink->port[selfDir], lp.getLeft());
+
+        // Need to register with both of the syncs (the ones for
+        // both local and remote thread)
+
+        // For local, just register link with threadSync object so
+        // it can map link_id to link*
+        RankInfo localRank, remoteRank;
+        localRank  = (selfDir == 0) ? rank0 : rank1;
+        remoteRank = (selfDir == 0) ? rank1 : rank0;
+        ActivityQueue* sync_q = syncManager->registerLink(remoteRank, localRank, clink->name, lp.getRight());
+
+        lp.getLeft()->send_queue = sync_q;
+        lp.getRight()->setAsSyncLink();
       }
     }
 
