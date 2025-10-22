@@ -730,12 +730,9 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
     }
     tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
     cinfo->setComponent(tmp);
-  }
 
-  /*for ( ConfigLinkMap_t::const_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
-    ConfigLink* clink = *iter;
-    delete clink;
-  }*/
+    delete ccomp;
+  }
 }
 
 
