@@ -340,7 +340,7 @@ public:
     ImplementSerializable(SST::ConfigStatOutput)
 };
 
-using ConfigLinkMap_t = SparseVectorMap<LinkId_t, ConfigLink*>;
+using ConfigLinkMap_t = SplitKeySparseVectorMap<LinkId_t, ConfigLink*>;
 
 /**
    Class that represents a PortModule in ConfigGraph

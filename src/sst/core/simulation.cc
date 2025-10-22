@@ -589,16 +589,8 @@ Simulation_impl::initializeStatisticEngine(StatsConfig* stats_config)
 static bool useNewCodePath = true;
 
 void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInfo& myRank) {
-  // Visit configComponents and stashes rank information for that component
-  // (based on ID).  At some point this information might be available on
-  // configLinks directly so this stashing step could be removed.
-  std::map<int, RankInfo> compIdToRank;
-  for ( ConfigComponentMap_t::const_iterator iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
-    ConfigComponent* ccomp = *iter;
-    compIdToRank.insert({ccomp->id, ccomp->rank});
-  }
-
   std::map<LinkId_t, Link*> outstandingLinks;
+  std::set<LinkId_t> visitedLinks;
   for ( ConfigComponentMap_t::const_iterator iter = graph.comps_.begin(); iter != graph.comps_.end(); ++iter ) {
     ConfigComponent* ccomp = *iter;
     if ( ccomp->rank != myRank ) {
@@ -609,35 +601,39 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
     ComponentInfo* cinfo = new ComponentInfo(ccomp, ccomp->name, nullptr, new LinkMap());
     compInfoMap.insert(cinfo);
 
-    std::set<std::string> deletedLinks;
-
     // iterate over the component's outgoing links
     for ( LinkId_t linkId : ccomp->links ) {
       ConfigLink *clink = graph.links_[linkId];
 
-      //std::cout << "PROCESS " << linkId << std::endl;
-      //std::cout << "        " << clink->name << std::endl;
-      //if(deletedLinks.count(clink->name) > 0) {
-      //  std::cout << " !!!!!!!!!!! DELETED !!!!!!!!!!!! " << std::endl;
-      //}
+      RankInfo rank0, rank1;
+      int selfDir, tgtDir;
 
-      // Note that ConfigLinks are bidirectional and it's not gauranteed that
-      // comp0/rank0 will refer to the current component we're iterating over.
-      ComponentId_t compId0 = clink->component[0];
-      ComponentId_t compId1 = clink->component[1];
-      RankInfo rank0 = compIdToRank.at(compId0);
-      RankInfo rank1 = compIdToRank.at(compId1);
-      int selfDir = (compId0 == ccomp->id) ? 0 : 1;
-      int tgtDir  = (selfDir + 1) % 2;
-      assert((selfDir == 0 && compId0 == ccomp->id) ||
-             (selfDir == 1 && compId1 == ccomp->id));
+      if(clink->nonlocal) {
+        rank0 = myRank;
+        rank1.rank = clink->component[1];
+        rank1.thread = clink->latency[1];
+        selfDir = 0;
+        tgtDir  = 1;
+      } else {
+        rank0 = myRank;
+        rank1 = myRank;
+        assert(rank0 == rank1);
+        assert(rank0 == myRank);
+
+        selfDir = (clink->component[0] == ccomp->id) ? 0 : 1;
+        tgtDir  = (selfDir + 1) % 2;
+        assert((selfDir == 0 && clink->component[0] == ccomp->id) ||
+               (selfDir == 1 && clink->component[1] == ccomp->id));
+      }
       assert((selfDir == 0 && rank0   == myRank) ||
-             (selfDir == 1 && rank1   == rank1));
+             (selfDir == 1 && rank1   == myRank));
 
+      bool isLoopback = false;
       // Same rank, same thread
       if ( rank0 == rank1 ) {
           // Check to see if this is loopback link
-          if ( clink->component[0] == clink->component[1] && clink->port[0] == clink->port[1] ) {
+          isLoopback = clink->component[0] == clink->component[1] && clink->port[0] == clink->port[1];
+          if ( isLoopback ) {
               // This is a loopback, so there is only one link
               Link* link      = new Link(clink->order);
               link->pair_link = link;
@@ -645,8 +641,6 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
 
               // Add this link to the appropriate LinkMap
               cinfo->getLinkMap()->insertLink(clink->port[0], link);
-
-              delete clink;
           } else {
               // check to see if we've already made the link, if so simply assign it.
               auto outstandingLinkIter = outstandingLinks.find(clink->order);
@@ -655,10 +649,6 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
                 outstandingLinks.erase(outstandingLinkIter);
 
                 cinfo->getLinkMap()->insertLink(clink->port[selfDir], link);
-
-                //std::cout << "DELETE " << clink->name << "  " << clink->id << std::endl;
-                //deletedLinks.insert(clink->name);
-                //delete clink;
               } else {
                 // Create a LinkPair to represent this link
                 LinkPair lp(clink->order);
@@ -716,6 +706,19 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
         lp.getLeft()->send_queue = sync_q;
         lp.getRight()->setAsSyncLink();
       }
+
+      // Delete the configlink if this is the second time we've visited it or if it's going cross partition
+      if(isLoopback || clink->nonlocal) {
+          delete clink;
+      } else {
+        auto it = visitedLinks.find(clink->id);
+        if(it != visitedLinks.end()) {
+          visitedLinks.erase(it);
+          delete clink;
+        } else {
+          visitedLinks.insert(clink->id);
+        }
+      }
     }
 
     Params::enableVerify();
@@ -727,13 +730,12 @@ void Simulation_impl::convertConfigRepToSimRep(ConfigGraph& graph, const RankInf
     }
     tmp = createComponent(ccomp->id, ccomp->type, ccomp->params);
     cinfo->setComponent(tmp);
-    delete ccomp;
   }
 
-  for ( ConfigLinkMap_t::const_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
+  /*for ( ConfigLinkMap_t::const_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
     ConfigLink* clink = *iter;
     delete clink;
-  }
+  }*/
 }
 
 
@@ -758,7 +760,7 @@ Simulation_impl::prepareLinks(ConfigGraph& graph, const RankInfo& myRank, SimTim
     // We will go through all the links and create LinkPairs for each
     // link.  We will also create a LinkMap for each component and put
     // them into a map with ComponentID as the key.
-    for ( ConfigLinkMap_t::const_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
+    for ( ConfigLinkMap_t::pairsecond_iterator iter = graph.links_.begin(); iter != graph.links_.end(); ++iter ) {
         ConfigLink* clink = *iter;
         RankInfo    rank[2];
         rank[0] = graph.comps_[COMPONENT_ID_MASK(clink->component[0])]->rank;

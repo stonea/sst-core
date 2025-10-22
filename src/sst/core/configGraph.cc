@@ -771,7 +771,7 @@ ConfigGraph::checkRanks(RankInfo ranks)
     }
 
     // Set the cross_rank and cross_thread flags
-    for ( auto& link : links_ ) {
+    for ( auto link : links_ ) {
         RankInfo r0(-1, -1);
         RankInfo r1(-1, -1);
         r0 = comps_[COMPONENT_ID_MASK(link->component[0])]->rank;
@@ -805,8 +805,7 @@ ConfigGraph::postCreationCleanup()
     // Need to assign the link delivery order.  This is done
     // alphabetically by link name. To save memory, we'll sort links_
     // by name, then sort it back by link_id
-    std::sort(links_.begin(), links_.end(),
-        [](const ConfigLink* lhs, const ConfigLink* rhs) -> bool { return lhs->name < rhs->name; });
+    links_.sort([](const ConfigLink* lhs, const ConfigLink* rhs) -> bool { return lhs->name < rhs->name; });
 
     LinkId_t count = 1;
     for ( auto* link : links_ ) {
@@ -839,7 +838,7 @@ ConfigGraph::checkForStructuralErrors()
     // making sure there are components on both sides of the link.
 
     bool found_error = false;
-    for ( ConfigLinkMap_t::iterator iter = links_.begin(); iter != links_.end(); ++iter ) {
+    for ( ConfigLinkMap_t::pairsecond_iterator iter = links_.begin(); iter != links_.end(); ++iter ) {
         ConfigLink* clink = *iter;
 
         // First check to see if the link is completely unused
@@ -1275,7 +1274,7 @@ ConfigGraph::getMinimumPartitionLatency()
 
     SimTime_t graph_min_part = std::numeric_limits<SimTime_t>::max();
 
-    for ( auto& link : links_ ) {
+    for ( auto link : links_ ) {
         if ( link->cross_rank ) {
             SimTime_t min_lat = link->getMinLatency();
             if ( min_lat < graph_min_part ) {
@@ -1304,7 +1303,7 @@ ConfigGraph::getPartitionGraph()
         pcomps.insert(new PartitionComponent(comp));
     }
 
-    for ( ConfigLinkMap_t::iterator it = links_.begin(); it != links_.end(); ++it ) {
+    for ( ConfigLinkMap_t::pairsecond_iterator it = links_.begin(); it != links_.end(); ++it ) {
         const ConfigLink* link = *it;
 
         const ConfigComponent* comp0 = comps_[COMPONENT_ID_MASK(link->component[0])];
@@ -1386,7 +1385,7 @@ ConfigGraph::getCollapsedPartitionGraph()
     // to the set by passing the ConfigLink into the constructor.
     // This will insert in order since the iterator is from a
     // SparseVectorMap.
-    for ( ConfigLinkMap_t::iterator i = links_.begin(); i != links_.end(); ++i ) {
+    for ( ConfigLinkMap_t::pairsecond_iterator i = links_.begin(); i != links_.end(); ++i ) {
         if ( deleted_links.find((*i)->id) == deleted_links.end() ) plinks.insert(*(*i));
     }
 
